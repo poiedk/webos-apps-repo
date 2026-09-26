@@ -22,18 +22,18 @@
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wled-fix.html",
       "manifest": {
         "id": "org.webosbrew.wledfix",
-        "version": "1.1.7",
+        "version": "1.1.8",
         "type": "web",
         "title": "WLED Fix",
         "appDescription": "WLED discovery and Hyperion repair",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wled-fix",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.7/org.webosbrew.wledfix_1.1.7_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.8/org.webosbrew.wledfix_1.1.8_all.ipk",
         "ipkHash": {
-          "sha256": "34c4f077342482e5c2f3afdc603e50f489eead63b8b354f757fa02b34aba9557"
+          "sha256": "cecf610fce8f73d57609516b60e091ff14890678a1b9e9f2274d98a20fd23646"
         },
-        "ipkSize": 8330
+        "ipkSize": 8394
       }
     }
   ]
