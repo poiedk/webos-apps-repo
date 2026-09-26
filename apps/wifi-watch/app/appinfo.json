@@ -8,7 +8,7 @@
   "icon": "icon.png",
   "iconColor": "#102b40",
   "bgColor": "#07131f",
-  "appDescription": "Background Wi-Fi watchdog and safe recovery for rooted LG webOS TVs",
+  "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery",
   "disableBackHistoryAPI": true,
   "largeIcon": "largeIcon.png"
 }
