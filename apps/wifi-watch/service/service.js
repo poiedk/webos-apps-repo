@@ -5,12 +5,18 @@ var cp=require('child_process'),fs=require('fs');
 var LOG='/tmp/wifi-watch.log';
 var OLD='/tmp/wifi-watch.log.old';
 var CONFIG='/home/root/.config/wifi-watch.json';
+var ROOT_EXEC='luna://org.webosbrew.hbchannel.service/exec';
 var DEFAULTS={autoMonitor:true,intervalSec:5,failureThreshold:3,iface:'wlan0',pingTimeout:2,logSizeMB:1};
 
 var cfg=loadConfig();
-var timer=null,failures=0,lastFailure=null,last={};
+var timer=null,failures=0,lastFailure=null,last={
+  returnValue:true,state:'Starting',ssid:'--',ip:null,gateway:null,latencyMs:null,
+  rxPackets:null,rxDropped:null,failureCount:0,lastFailure:null,association:'unknown',
+  connman:'unknown',monitoring:false,iface:'wlan0',lastCheck:null,probeError:null
+};
+var collecting=false;
 
-function sh(cmd){
+function localSh(cmd){
   try{return cp.execSync(cmd,{encoding:'utf8'}).trim();}
   catch(e){return (e.stdout||'').toString().trim();}
 }
@@ -41,13 +47,9 @@ function loadConfig(){
 
 function saveConfig(){
   try{
-    sh('mkdir -p /home/root/.config');
+    localSh('mkdir -p /home/root/.config');
     fs.writeFileSync(CONFIG,JSON.stringify(cfg,null,2));
   }catch(e){}
-}
-
-function gateway(){
-  return sh("route -n 2>/dev/null | awk '$1==\"0.0.0.0\" {print $2; exit}'");
 }
 
 function rotate(){
@@ -65,62 +67,138 @@ function log(s){
   try{fs.appendFileSync(LOG,s+'\n');rotate();}catch(e){}
 }
 
-function captureFailure(gw){
-  log('\n######## WIFI FAILURE '+lastFailure+' ########\n'+
-    sh('date; ifconfig '+cfg.iface+'; route -n; cat /proc/net/wireless; cat /proc/net/arp; connmanctl services; dmesg | tail -n 120')+
-    '\nGATEWAY='+gw);
+function parseKv(text){
+  var out={},lines=String(text||'').split(/\r?\n/),i,p,k,v;
+  for(i=0;i<lines.length;i++){
+    p=lines[i].indexOf('=');
+    if(p>0){
+      k=lines[i].slice(0,p);
+      v=lines[i].slice(p+1);
+      out[k]=v;
+    }
+  }
+  return out;
 }
 
-function collect(){
-  var IF=cfg.iface,GW=gateway();
-  var ifc=sh('ifconfig '+IF+' 2>/dev/null');
-  var ipm=ifc.match(/inet addr:([0-9.]+)/);
-  var rxm=ifc.match(/RX packets:(\d+).*dropped:(\d+)/);
-  var pingOut=GW?sh('ping -c 1 -W '+cfg.pingTimeout+' '+GW+' 2>/dev/null'):'';
-  var lm=pingOut.match(/time[=<]([0-9.]+) ?ms/);
-  var ok=!!GW && /1 packets received|1 received|1 packets transmitted, 1 received/.test(pingOut);
+function rootExec(command,cb){
+  service.call(ROOT_EXEC,{command:command},function(m){
+    var p=m&&m.payload?m.payload:{};
+    if(p.returnValue===false||p.errorCode||p.errorText){
+      cb(p.errorText||p.errorCode||'Root exec failed','',p);
+      return;
+    }
+    cb(null,p.stdoutString||'',p);
+  });
+}
 
-  if(!ok){
+function buildProbeCommand(){
+  var q=[];
+  q.push('IF='+cfg.iface);
+  q.push('TIMEOUT='+cfg.pingTimeout);
+  q.push('IFC="$(ifconfig "$IF" 2>/dev/null)"');
+  q.push('IP="$(printf "%s\\n" "$IFC" | sed -n "s/.*inet addr:\\([0-9.]*\\).*/\\1/p" | head -n 1)"');
+  q.push('GW="$(route -n 2>/dev/null | awk \'$1=="0.0.0.0" {print $2; exit}\')"');
+  q.push('RXP="$(cat /sys/class/net/"$IF"/statistics/rx_packets 2>/dev/null)"');
+  q.push('RXD="$(cat /sys/class/net/"$IF"/statistics/rx_dropped 2>/dev/null)"');
+  q.push('OPER="$(cat /sys/class/net/"$IF"/operstate 2>/dev/null)"');
+  q.push('ACTIVE="$(connmanctl services 2>/dev/null | grep "^\\*A" | head -n 1)"');
+  q.push('SSID="$(printf "%s\\n" "$ACTIVE" | sed "s/^\\*A[OFR]*[[:space:]]*//" | sed "s/[[:space:]]wifi_.*$//" | sed "s/[[:space:]]*$//")"');
+  q.push('if [ -n "$GW" ]; then PING="$(ping -c 1 -W "$TIMEOUT" "$GW" 2>/dev/null)"; else PING=""; fi');
+  q.push('LAT="$(printf "%s\\n" "$PING" | sed -n "s/.*time[=<]\\([0-9.]*\\)[[:space:]]*ms.*/\\1/p" | head -n 1)"');
+  q.push('if printf "%s\\n" "$PING" | grep -Eq "1 packets received|1 received|1 packets transmitted, 1 received"; then OK=1; else OK=0; fi');
+  q.push('echo "IP=$IP"');
+  q.push('echo "GW=$GW"');
+  q.push('echo "SSID=$SSID"');
+  q.push('echo "RX_PACKETS=$RXP"');
+  q.push('echo "RX_DROPPED=$RXD"');
+  q.push('echo "OPER=$OPER"');
+  q.push('if [ -n "$ACTIVE" ]; then echo "CONNMAN=connected"; else echo "CONNMAN=unknown"; fi');
+  q.push('echo "LATENCY=$LAT"');
+  q.push('echo "PING_OK=$OK"');
+  return q.join('; ');
+}
+
+function captureFailure(gw){
+  var cmd='date; ifconfig '+cfg.iface+'; route -n; cat /proc/net/wireless; cat /proc/net/arp; connmanctl services; dmesg | tail -n 120';
+  rootExec(cmd,function(err,out){
+    log('\n######## WIFI FAILURE '+lastFailure+' ########\n'+(out||('probe error: '+err))+'\nGATEWAY='+(gw||'none'));
+  });
+}
+
+function finishCollect(err,data){
+  var now=new Date().toISOString();
+  if(err){
+    last.returnValue=true;
+    last.state='Unavailable';
+    last.probeError=String(err);
+    last.lastCheck=now;
+    last.monitoring=!!timer;
+    last.iface=cfg.iface;
+    collecting=false;
+    log(now+' probe unavailable: '+err);
+    return last;
+  }
+
+  var ok=data.PING_OK==='1';
+  var hasNetwork=!!(data.IP||data.GW||data.OPER);
+  if(hasNetwork&&!ok){
     failures++;
     if(failures===cfg.failureThreshold){
-      lastFailure=new Date().toISOString();
-      captureFailure(GW||'none');
+      lastFailure=now;
+      captureFailure(data.GW||'none');
     }
-  }else failures=0;
+  }else if(ok){
+    failures=0;
+  }
 
-  var services=sh('connmanctl services 2>/dev/null');
-  var lines=services.split('\n'),active='',i;
-  for(i=0;i<lines.length;i++){if(/^\*A/.test(lines[i])){active=lines[i];break;}}
-  var sm=active.match(/^\*A[OFR]*\s+(.+?)\s+wifi_/);
-  var oper=sh('cat /sys/class/net/'+IF+'/operstate 2>/dev/null');
-  var state=ok?'Connected':(failures>=cfg.failureThreshold?'Problem':'Degraded');
+  var state;
+  if(!hasNetwork)state='Unavailable';
+  else if(ok)state='Connected';
+  else state=failures>=cfg.failureThreshold?'Problem':'Degraded';
 
   last={
     returnValue:true,
     state:state,
-    ssid:sm?sm[1].trim():'--',
-    ip:ipm?ipm[1]:null,
-    gateway:GW||null,
-    latencyMs:lm?Number(lm[1]):null,
-    rxPackets:rxm?Number(rxm[1]):null,
-    rxDropped:rxm?Number(rxm[2]):null,
+    ssid:data.SSID||'--',
+    ip:data.IP||null,
+    gateway:data.GW||null,
+    latencyMs:data.LATENCY?Number(data.LATENCY):null,
+    rxPackets:data.RX_PACKETS?Number(data.RX_PACKETS):null,
+    rxDropped:data.RX_DROPPED?Number(data.RX_DROPPED):null,
     failureCount:failures,
     lastFailure:lastFailure,
-    association:oper||'unknown',
-    connman:active?'connected':'unknown',
+    association:data.OPER||'unknown',
+    connman:data.CONNMAN||'unknown',
     monitoring:!!timer,
-    iface:IF,
-    lastCheck:new Date().toISOString()
+    iface:cfg.iface,
+    lastCheck:now,
+    probeError:null
   };
 
-  if(!ok)log(new Date().toISOString()+' state='+state+' failures='+failures+' oper='+oper+' ip='+(last.ip||'-')+' gateway='+(GW||'-'));
+  if(state!=='Connected'){
+    log(now+' state='+state+' failures='+failures+' oper='+(data.OPER||'-')+' ip='+(data.IP||'-')+' gateway='+(data.GW||'-'));
+  }
+  collecting=false;
   return last;
+}
+
+function collect(cb){
+  if(collecting){
+    if(cb)cb(null,last);
+    return;
+  }
+  collecting=true;
+  rootExec(buildProbeCommand(),function(err,out){
+    var r=finishCollect(err,parseKv(out));
+    if(cb)cb(err,r);
+  });
 }
 
 function start(){
   if(timer)return;
   collect();
-  timer=setInterval(collect,cfg.intervalSec*1000);
+  timer=setInterval(function(){collect();},cfg.intervalSec*1000);
+  last.monitoring=true;
 }
 
 function stop(){
@@ -128,7 +206,7 @@ function stop(){
   last.monitoring=false;
 }
 
-function applyPatch(patch){
+function applyPatch(patch,cb){
   var wasRunning=!!timer,key;
   if(patch&&patch.reset===true){
     cfg=sanitize(DEFAULTS);
@@ -146,12 +224,14 @@ function applyPatch(patch){
   }else{
     collect();
   }
+  if(cb)cb();
 }
 
 service.register('status',function(m){
-  if(!timer)collect();
-  last.monitoring=!!timer;
-  m.respond(last);
+  collect(function(){
+    last.monitoring=!!timer;
+    m.respond(last);
+  });
 });
 
 service.register('toggleMonitor',function(m){
@@ -160,14 +240,14 @@ service.register('toggleMonitor',function(m){
 });
 
 service.register('diagnostics',function(m){
-  var r=collect();
-  var text='=== STATUS ===\n'+JSON.stringify(r,null,2)+
-    '\n\n=== SETTINGS ===\n'+JSON.stringify(cfg,null,2)+
-    '\n\n=== ROUTES ===\n'+sh('route -n')+
-    '\n\n=== WIRELESS ===\n'+sh('cat /proc/net/wireless')+
-    '\n\n=== CONNMAN ===\n'+sh('connmanctl services')+
-    '\n\n=== LAST LOG ===\n'+sh('tail -n 250 '+LOG+' 2>/dev/null');
-  m.respond({returnValue:true,text:text});
+  var cmd='echo "=== ROUTES ==="; route -n; echo; echo "=== WIRELESS ==="; cat /proc/net/wireless; echo; echo "=== ARP ==="; cat /proc/net/arp; echo; echo "=== CONNMAN ==="; connmanctl services; echo; echo "=== IFCONFIG ==="; ifconfig '+cfg.iface;
+  rootExec(cmd,function(err,out){
+    var text='=== STATUS ===\n'+JSON.stringify(last,null,2)+
+      '\n\n=== SETTINGS ===\n'+JSON.stringify(cfg,null,2)+
+      '\n\n'+(out||('ROOT PROBE ERROR: '+err))+
+      '\n\n=== LAST LOG ===\n'+localSh('tail -n 250 '+LOG+' 2>/dev/null');
+    m.respond({returnValue:true,text:text});
+  });
 });
 
 service.register('getSettings',function(m){
@@ -175,8 +255,9 @@ service.register('getSettings',function(m){
 });
 
 service.register('setSettings',function(m){
-  applyPatch((m.payload&&m.payload.settings)||{});
-  m.respond({returnValue:true,settings:cfg,monitoring:!!timer});
+  applyPatch((m.payload&&m.payload.settings)||{},function(){
+    m.respond({returnValue:true,settings:cfg,monitoring:!!timer});
+  });
 });
 
 service.register('clearLog',function(m){
