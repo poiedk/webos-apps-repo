@@ -19,7 +19,7 @@
       "title": "WLED Fix",
       "shortDescription": "WLED discovery and Hyperion repair for rooted LG webOS TVs.",
       "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
-      "manifestUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.4/org.webosbrew.wledfix.manifest.json",
+      "manifestUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.5/org.webosbrew.wledfix.manifest.json",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wled-fix.html"
     }
   ]
