@@ -185,7 +185,7 @@ function buildProbeCommand(){
   q.push('echo "OPER=$OPER"');
   q.push('echo "SIGNAL_DBM=$LEVEL"');
   q.push('echo "SIGNAL_QUALITY=$QPCT"');
-  q.push('if [ -x /var/lib/webosbrew/init.d/60-wifi-watch ]; then echo "HOOK_ACTIVE=1"; else echo "HOOK_ACTIVE=0"; fi');
+  q.push('if readlink /var/lib/webosbrew/init.d/60-wifi-watch >/dev/null 2>&1 && [ -x /media/developer/apps/usr/palm/services/org.webosbrew.wifiwatch.service/autostart.sh ]; then echo "HOOK_ACTIVE=1"; else echo "HOOK_ACTIVE=0"; fi');
   q.push('if [ -n "$ACTIVE" ]; then echo "CONNMAN=connected"; else echo "CONNMAN=unknown"; fi');
   q.push('echo "LATENCY=$LAT"');
   q.push('echo "PING_OK=$OK"');
@@ -495,7 +495,8 @@ service.register('clearLog',function(m){
 service.register('closeApp',function(m){
   m.respond({returnValue:true});
   setTimeout(function(){
-    cp.exec("(luna-send -n 1 luna://com.webos.service.applicationmanager/closeByAppId '{\"id\":\"org.webosbrew.wifiwatch\"}' >/dev/null 2>&1; sleep 1; luna-send -n 1 luna://com.webos.applicationManager/dev/close '{\"id\":\"org.webosbrew.wifiwatch\"}' >/dev/null 2>&1) &");
+    var cmd="(luna-send -n 1 -f luna://com.webos.applicationManager/dev/closeByAppId '{\"id\":\"org.webosbrew.wifiwatch\"}' >/dev/null 2>&1 || luna-send -n 1 -f luna://com.webos.service.applicationManager/closeByAppId '{\"id\":\"org.webosbrew.wifiwatch\"}' >/dev/null 2>&1) &";
+    rootExec(cmd,function(){});
   },100);
 });
 

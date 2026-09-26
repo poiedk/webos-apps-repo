@@ -187,7 +187,11 @@
 
   function exitApp(){
     if(busy)return;
+    document.getElementById('state').textContent='Closing WiFi Watch...';
     call('closeApp',{},function(){});
+    setTimeout(function(){
+      try{window.close();}catch(e){}
+    },700);
   }
 
   function activate(){
