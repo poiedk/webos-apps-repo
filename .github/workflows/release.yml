@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - '.release/wled-fix-*'
+      - '.release/wifi-watch-*'
   workflow_dispatch:
 
 permissions:
@@ -34,6 +35,10 @@ jobs:
           elif [[ "$GITHUB_REF_NAME" == wled-fix-v* ]]; then
             APP="wled-fix"
             TAG="$GITHUB_REF_NAME"
+          elif ls .release/wifi-watch-* >/dev/null 2>&1; then
+            APP="wifi-watch"
+            VERSION="$(node -p "require('./apps/wifi-watch/app/appinfo.json').version")"
+            TAG="wifi-watch-v$VERSION"
           elif ls .release/wled-fix-* >/dev/null 2>&1; then
             APP="wled-fix"
             VERSION="$(node -p "require('./apps/wled-fix/app/appinfo.json').version")"
