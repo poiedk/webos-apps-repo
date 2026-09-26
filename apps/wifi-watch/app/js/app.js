@@ -57,6 +57,12 @@
     document.getElementById('autoFix').textContent='--';
   }
 
+  function lastRecoveryText(r){
+    if(!r.lastRecovery)return 'None';
+    var state=r.lastRecoveryResult==='success'?'Success':(r.lastRecoveryResult==='failed'?'Failed':(r.lastRecoveryResult==='running'?'Running':'Blocked'));
+    return state+' '+checkTime(r.lastRecovery);
+  }
+
   function renderStatus(r){
     current=r||{};
     var badge=document.getElementById('stateBadge');
@@ -69,13 +75,13 @@
     document.getElementById('ip').textContent=r.ip||'--';
     document.getElementById('gateway').textContent='Gateway '+(r.gateway||'--');
     document.getElementById('latency').textContent=r.latencyMs!=null?r.latencyMs+' ms':'--';
-    document.getElementById('signal').textContent=r.signalDbm!=null?r.signalDbm+' dBm':'--';
+    document.getElementById('signal').textContent=(r.signalDbm!=null&&r.signalDbm!==0)?r.signalDbm+' dBm':(r.signalQuality!=null?r.signalQuality+'%':'--');
     document.getElementById('rxDropped').textContent=fmt(r.rxDropped);
     document.getElementById('recoveries').textContent=fmt(r.recoveryCount||0);
-    document.getElementById('iface').textContent=(r.iface||'--')+' · '+(r.association||'--');
-    document.getElementById('connman').textContent=r.connman||'--';
-    document.getElementById('dropDelta').textContent=r.rxDropDelta==null?'--':'+'+fmt(r.rxDropDelta);
+    document.getElementById('watchdog').textContent=r.watchdogActive?'Active':(r.backgroundWatchdog?'Pending':'Off');
     document.getElementById('autoFix').textContent=r.autoFix?'ON':'OFF';
+    document.getElementById('lastRecovery').textContent=lastRecoveryText(r);
+    document.getElementById('dropDelta').textContent=r.rxDropDelta==null?'--':'+'+fmt(r.rxDropDelta);
     document.getElementById('autoFixAction').textContent=r.autoFix?'Auto Fix ON':'Auto Fix OFF';
     document.getElementById('fixAction').textContent=r.recoveryInProgress?'Recovering...':'Fix now';
   }

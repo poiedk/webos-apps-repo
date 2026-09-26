@@ -167,7 +167,11 @@ function buildProbeCommand(){
   q.push('RXP="$(cat /sys/class/net/"$IF"/statistics/rx_packets 2>/dev/null)"');
   q.push('RXD="$(cat /sys/class/net/"$IF"/statistics/rx_dropped 2>/dev/null)"');
   q.push('OPER="$(cat /sys/class/net/"$IF"/operstate 2>/dev/null)"');
-  q.push('SIG="$(awk -v i="$IF:" \'$1==i {gsub("\\\\.","",$4); print $4; exit}\' /proc/net/wireless 2>/dev/null)"');
+  q.push('WLINE="$(awk -v i="$IF:" \'$1==i {print $3 "|" $4; exit}\' /proc/net/wireless 2>/dev/null)"');
+  q.push('QUAL="${WLINE%%|*}"; LEVEL="${WLINE#*|}"');
+  q.push('QUAL="$(printf "%s" "$QUAL" | sed "s/\\.$//")"; LEVEL="$(printf "%s" "$LEVEL" | sed "s/\\.$//")"');
+  q.push('if [ "$LEVEL" = "0" ] || [ "$LEVEL" = "0.0" ]; then LEVEL=""; fi');
+  q.push('QPCT="$(awk -v q="$QUAL" \'BEGIN{if(q==""){exit}; p=(q<=70?q*100/70:q); if(p>100)p=100; if(p<0)p=0; printf "%.0f",p}\')"');
   q.push('ACTIVE="$(connmanctl services 2>/dev/null | grep "^\\*A" | head -n 1)"');
   q.push('SSID="$(printf "%s\\n" "$ACTIVE" | sed "s/^\\*A[OFR]*[[:space:]]*//" | sed "s/[[:space:]]wifi_.*$//" | sed "s/[[:space:]]*$//")"');
   q.push('if [ -n "$GW" ]; then PING="$(ping -c 1 -W "$TIMEOUT" "$GW" 2>/dev/null)"; else PING=""; fi');
@@ -179,7 +183,9 @@ function buildProbeCommand(){
   q.push('echo "RX_PACKETS=$RXP"');
   q.push('echo "RX_DROPPED=$RXD"');
   q.push('echo "OPER=$OPER"');
-  q.push('echo "SIGNAL=$SIG"');
+  q.push('echo "SIGNAL_DBM=$LEVEL"');
+  q.push('echo "SIGNAL_QUALITY=$QPCT"');
+  q.push('if [ -x /var/lib/webosbrew/init.d/60-wifi-watch ]; then echo "HOOK_ACTIVE=1"; else echo "HOOK_ACTIVE=0"; fi');
   q.push('if [ -n "$ACTIVE" ]; then echo "CONNMAN=connected"; else echo "CONNMAN=unknown"; fi');
   q.push('echo "LATENCY=$LAT"');
   q.push('echo "PING_OK=$OK"');
@@ -298,6 +304,7 @@ function finishCollect(err,data,suppressAuto){
     last.lastCheck=now;
     last.monitoring=!!timer;
     last.backgroundWatchdog=cfg.backgroundWatchdog;
+    last.watchdogActive=false;
     last.autoFix=cfg.autoFix;
     last.iface=cfg.iface;
     last.recoveryInProgress=recoveryInProgress;
@@ -339,7 +346,8 @@ function finishCollect(err,data,suppressAuto){
     ip:data.IP||null,
     gateway:data.GW||null,
     latencyMs:data.LATENCY?Number(data.LATENCY):null,
-    signalDbm:data.SIGNAL?Number(data.SIGNAL):null,
+    signalDbm:data.SIGNAL_DBM?Number(data.SIGNAL_DBM):null,
+    signalQuality:data.SIGNAL_QUALITY?Number(data.SIGNAL_QUALITY):null,
     rxPackets:data.RX_PACKETS?Number(data.RX_PACKETS):null,
     rxDropped:rxDropped,
     rxDropDelta:delta,
@@ -349,6 +357,7 @@ function finishCollect(err,data,suppressAuto){
     connman:data.CONNMAN||'unknown',
     monitoring:!!timer,
     backgroundWatchdog:cfg.backgroundWatchdog,
+    watchdogActive:data.HOOK_ACTIVE==='1',
     autoFix:cfg.autoFix,
     iface:cfg.iface,
     lastCheck:now,
