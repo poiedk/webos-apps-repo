@@ -1,13 +1,15 @@
 <h2>WLED Fix</h2>
-<p>WLED rediscovery and Hyperion repair utility for rooted LG webOS TVs.</p>
-<p>WLED Fix finds the active WLED controller on the local network and repairs Hyperion when its stored WLED address is no longer correct.</p>
+<p>WLED discovery and Hyperion recovery utility for rooted LG webOS TVs.</p>
+<p>WLED Fix detects the active WLED controller on the local network, compares it with the Hyperion target and can repair the stored destination when the WLED address has changed.</p>
 <ul>
   <li>Fast check of the current Hyperion target</li>
   <li>ARP-assisted WLED discovery</li>
   <li>Optional full /24 subnet scan</li>
-  <li>Updates Hyperion host and hostList values</li>
-  <li>Creates a database backup before changes</li>
-  <li>Can restart Hyperion and verify the LED device afterwards</li>
-  <li>Simple and Advanced settings</li>
+  <li>Updates Hyperion host and hostList values when needed</li>
+  <li>Creates a Hyperion database backup before changes</li>
+  <li>Supports multiple Hyperion instances</li>
+  <li>Can restart Hyperion after a repair</li>
+  <li>Optional post-repair verification and LED test</li>
+  <li>Simple and Advanced settings with configurable discovery behaviour</li>
 </ul>
-<p>Requires root, Homebrew Channel, Hyperion.NG and WLED on the same IPv4 network.</p>
+<p>Requires root, Homebrew Channel, Hyperion.NG and WLED reachable on the same IPv4 network.</p>
