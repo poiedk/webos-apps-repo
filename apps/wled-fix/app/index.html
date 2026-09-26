@@ -4,78 +4,113 @@
 <meta charset="utf-8">
 <title>WLED Fix</title>
 <style>
-html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#090d12;color:#fff;font-family:Arial,Helvetica,sans-serif}
 *{box-sizing:border-box}
-.app{height:100%;padding:34px 58px;display:flex;flex-direction:column}
-.header{display:flex;align-items:flex-start;margin-bottom:24px}
+.app{height:100%;padding:24px 42px;display:flex;flex-direction:column}
+.header{height:76px;display:flex;align-items:flex-start;border-bottom:1px solid #3a4149;padding-bottom:12px;margin-bottom:14px}
 .headerText{flex:1}
-.title{font-size:52px;font-weight:300;letter-spacing:.3px}
-.subtitle{font-size:20px;color:#aaa;margin-top:6px}
-.version{font-size:18px;color:#888;padding-top:12px}
+.title{font-size:42px;line-height:44px;font-weight:300}
+.subtitle{font-size:17px;color:#a7adb5;margin-top:3px}
+.version{font-size:16px;color:#a7adb5;padding-top:7px}
 .screen{display:none;flex:1;min-height:0}
 .screen.active{display:flex}
 #main{flex-direction:column}
-.hb-list{display:flex;flex-direction:column;gap:8px;flex:1}
-.hb-item{height:92px;padding:12px 18px;display:grid;grid-template-columns:72px 1fr auto;align-items:center;border-radius:3px;background:#101010;border:2px solid transparent}
-.hb-item img{width:58px;height:58px;object-fit:contain;margin-right:16px}
-.item-title{font-size:28px;font-weight:700}
-.item-sub{font-size:18px;color:#aaa;margin-top:3px}
-.item-right{font-size:19px;color:#bbb;padding-left:24px;text-align:right}
-.hb-item.focus{background:#fff;color:#000;border-color:#fff}
-.hb-item.focus .item-sub,.hb-item.focus .item-right{color:#333}
-.details{margin-top:15px;border-top:1px solid #333;padding-top:18px}
-.details-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.detail{background:#111;padding:14px 18px;min-height:76px}
-.detail span{display:block;color:#888;font-size:16px;text-transform:uppercase}
-.detail b{display:block;font-size:24px;margin-top:5px}
-.technical{font-size:15px;color:#aaa;white-space:pre-wrap;max-height:70px;overflow:hidden;margin-top:10px}
-.footer{display:flex;justify-content:space-between;align-items:center;padding-top:15px;color:#888;font-size:17px}
+.hb-list{display:flex;flex-direction:column;gap:7px}
+.hb-item{height:72px;padding:7px 14px;display:grid;grid-template-columns:56px 1fr 130px;align-items:center;background:#151b22;border:2px solid transparent}
+.hb-item img{width:46px;height:46px;object-fit:contain}
+.item-title{font-size:24px;font-weight:700;line-height:26px}
+.item-sub{font-size:15px;color:#a8b0ba;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-right{font-size:17px;color:#b6bdc5;text-align:right}
+.hb-item.focus{background:#f2f2f2;color:#111;border-color:#fff}
+.hb-item.focus .item-sub,.hb-item.focus .item-right{color:#444}
+.details{margin-top:12px;border-top:1px solid #3a4149;padding-top:12px}
+.details-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.detail{background:#151b22;padding:10px 14px;height:64px}
+.detail span{display:block;color:#8f99a3;font-size:13px;text-transform:uppercase}
+.detail b{display:block;font-size:21px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result{margin-top:8px;height:54px;background:#111820;padding:8px 13px;display:flex;align-items:center;gap:12px}
+.resultIcon{width:34px;height:34px;border-radius:17px;background:#27313b;display:flex;align-items:center;justify-content:center;font-size:22px}
+.resultText{font-size:19px;font-weight:700}
+.resultSub{font-size:14px;color:#aab2bb;margin-top:2px}
+.technical{font-size:12px;color:#9aa3ad;white-space:pre-wrap;max-height:48px;overflow:hidden;margin-top:6px}
+.footer{display:flex;justify-content:space-between;align-items:center;padding-top:8px;color:#8e98a3;font-size:14px}
 .settings{flex-direction:column}
-.sectionTitle{font-size:34px;font-weight:300;margin-bottom:14px}
+.sectionTitle{font-size:30px;font-weight:300;margin-bottom:10px}
 .settingsList{flex:1;border-top:1px solid #333}
-.row{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:22px;border-bottom:1px solid #222}
-.row.focus{background:#fff;color:#000}
-.row .right{color:#aaa}
+.row{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:19px;border-bottom:1px solid #242b32}
+.row.focus{background:#f2f2f2;color:#111}
+.row .right{color:#aab2bb}
 .row.focus .right{color:#333}
-.danger{color:#e6a8a8}
-.overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.75);align-items:center;justify-content:center;z-index:50}
+.danger{color:#f0b0b0}
+.overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.78);align-items:center;justify-content:center;z-index:50}
 .overlay.show{display:flex}
-.dialog{width:560px;background:#111;border:1px solid #555;padding:30px}
-.dialogTitle{font-size:31px}
-.dialogText{font-size:19px;color:#aaa;margin:12px 0 24px}
-.dialogButtons{display:flex;gap:12px}
-.dialogBtn{flex:1;padding:14px;text-align:center;font-size:21px;background:#222;border:2px solid transparent}
+.dialog{width:520px;background:#131920;border:1px solid #56606a;padding:26px}
+.dialogTitle{font-size:28px}
+.dialogText{font-size:18px;color:#aaa;margin:10px 0 20px}
+.dialogButtons{display:flex;gap:10px}
+.dialogBtn{flex:1;padding:12px;text-align:center;font-size:19px;background:#252d36;border:2px solid transparent}
 .dialogBtn.focus{background:#fff;color:#000}
+.spinner{width:20px;height:20px;border:3px solid #6c7782;border-top-color:#fff;border-radius:50%}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="header">
-    <div class="headerText"><div class="title">WLED Fix</div><div class="subtitle">poiedk webOS Apps</div></div>
-    <div class="version">v1.1.2</div>
+    <div class="headerText">
+      <div class="title">WLED Fix</div>
+      <div class="subtitle">poiedk webOS Apps</div>
+    </div>
+    <div class="version">v1.1.5</div>
   </div>
 
   <section id="main" class="screen active">
     <div class="hb-list">
-      <div class="hb-item focus" data-action="run"><span id="statusIcon" style="display:none"></span>
-        <img src="icon.png"><div><div class="item-title">Run WLED Fix</div><div id="statusSub" class="item-sub">Find WLED and repair Hyperion target</div></div><div id="statusTitle" class="item-right">Ready</div>
+      <div class="hb-item focus" data-action="run">
+        <img src="icon.png">
+        <div>
+          <div class="item-title">Run WLED Fix</div>
+          <div class="item-sub">Find WLED and repair Hyperion target</div>
+        </div>
+        <div class="item-right">OK</div>
       </div>
       <div class="hb-item" data-action="settings">
-        <img src="icon.png"><div><div class="item-title">Settings</div><div class="item-sub">Discovery, verification and backup options</div></div><div class="item-right">›</div>
+        <img src="icon.png">
+        <div>
+          <div class="item-title">Settings</div>
+          <div class="item-sub">Discovery, verification and backup options</div>
+        </div>
+        <div class="item-right">›</div>
       </div>
       <div class="hb-item" data-action="exit">
-        <img src="icon.png"><div><div class="item-title">Exit App</div><div class="item-sub">Return to the webOS launcher</div></div><div class="item-right">›</div>
+        <img src="icon.png">
+        <div>
+          <div class="item-title">Exit App</div>
+          <div class="item-sub">Return to the webOS launcher</div>
+        </div>
+        <div class="item-right">›</div>
       </div>
     </div>
+
     <div class="details">
       <div class="details-grid">
         <div class="detail"><span>TV IP</span><b id="tvIp">—</b></div>
         <div class="detail"><span>WLED</span><b id="wledIp">—</b></div>
         <div class="detail"><span>Hyperion Target</span><b id="hyperionIp">—</b></div>
       </div>
+      <div class="result">
+        <div id="resultIcon" class="resultIcon">•</div>
+        <div>
+          <div id="resultText" class="resultText">Ready</div>
+          <div id="resultSub" class="resultSub">Press OK on Run WLED Fix</div>
+        </div>
+      </div>
       <div id="technical" class="technical"></div>
     </div>
-    <div class="footer"><span>←/→ Navigate · OK Select · BACK Back</span><span>Homebrew-style TV interface</span></div>
+
+    <div class="footer">
+      <span>↑/↓ Navigate · OK Select · BACK Back</span>
+      <span>WLED Fix 1.1.5</span>
+    </div>
   </section>
 
   <section id="simple" class="screen settings">
@@ -95,48 +130,29 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
   <div class="dialog">
     <div class="dialogTitle">Exit WLED Fix?</div>
     <div class="dialogText">Close the app and return to the webOS launcher.</div>
-    <div class="dialogButtons"><div id="exitCancel" class="dialogBtn focus">Cancel</div><div id="exitConfirm" class="dialogBtn">Exit</div></div>
+    <div class="dialogButtons">
+      <div id="exitCancel" class="dialogBtn focus">Cancel</div>
+      <div id="exitConfirm" class="dialogBtn">Exit</div>
+    </div>
   </div>
 </div>
+
 <script>
 (function(){
-  var VERSION="1.1.3";
   var DEFAULTS={
-    autoScan:true,
-    autoClose:false,
-    verify:true,
-    testLeds:false,
-    showTechnical:false,
-    fastScan:true,
-    fullScan:true,
-    timeout:1,
-    instance:0,
-    restart:true,
-    iface:"wlan0",
-    backup:true,
-    keepBackups:3,
-    verbose:false
+    autoScan:false,autoClose:false,verify:true,testLeds:false,showTechnical:false,
+    fastScan:true,fullScan:true,timeout:1,instance:0,restart:true,iface:"wlan0",
+    backup:true,keepBackups:3,verbose:false
   };
-  var settings=loadSettings();
-  var screen="main", focus=0, busy=false, bridge=null, lastRaw="", exitPrompt=false, exitFocus=0;
+  var settings=loadSettings(),screen="main",focus=0,busy=false,bridge=null,lastRaw="",exitPrompt=false,exitFocus=0;
 
   function clone(o){var n={},k;for(k in o)n[k]=o[k];return n;}
   function loadSettings(){
-    var s=clone(DEFAULTS), raw, x, k;
-    try{
-      raw=localStorage.getItem("wledfix.settings.v1");
-      if(raw){x=JSON.parse(raw);for(k in s){if(typeof x[k]!=="undefined")s[k]=x[k];}}
-    }catch(e){}
+    var s=clone(DEFAULTS),raw,x,k;
+    try{raw=localStorage.getItem("wledfix.settings.v1");if(raw){x=JSON.parse(raw);for(k in s){if(typeof x[k]!=="undefined")s[k]=x[k];}}}catch(e){}
     return s;
   }
   function saveSettings(){try{localStorage.setItem("wledfix.settings.v1",JSON.stringify(settings));}catch(e){}}
-
-  function show(id){
-    document.getElementById("main").className="screen"+(id==="main"?" active":"");
-    document.getElementById("simple").className="screen settings"+(id==="simple"?" active":"");
-    document.getElementById("advanced").className="screen settings"+(id==="advanced"?" active":"");
-    screen=id;focus=0;render();
-  }
 
   var simpleItems=[
     {k:"autoScan",label:"Auto scan on launch",type:"bool"},
@@ -159,38 +175,39 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
     {action:"reset",label:"Reset to defaults",value:"OK",danger:true}
   ];
 
+  function show(id){
+    document.getElementById("main").className="screen"+(id==="main"?" active":"");
+    document.getElementById("simple").className="screen settings"+(id==="simple"?" active":"");
+    document.getElementById("advanced").className="screen settings"+(id==="advanced"?" active":"");
+    screen=id;focus=0;render();
+  }
+
   function valText(it){
     if(it.action)return it.value||"";
     if(it.type==="bool")return settings[it.k]?"ON":"OFF";
     return String(settings[it.k])+(it.suffix||"");
   }
-
   function renderList(id,items){
     var host=document.getElementById(id),h="",i,it;
     for(i=0;i<items.length;i++){
       it=items[i];
-      h+='<div class="row '+(i===focus?"focus ":"")+(it.danger?"danger":"")+'" data-idx="'+i+'"><span>'+it.label+'</span><span class="right">'+valText(it)+'</span></div>';
+      h+='<div class="row '+(i===focus?"focus ":"")+(it.danger?"danger":"")+'"><span>'+it.label+'</span><span class="right">'+valText(it)+'</span></div>';
     }
     host.innerHTML=h;
   }
-
   function render(){
     if(screen==="main"){
-      var rows=document.querySelectorAll("#main .row"),i;
-      for(i=0;i<rows.length;i++)rows[i].className="row"+(i===focus?" focus":"");
+      var rows=document.querySelectorAll("#main .hb-item"),i;
+      for(i=0;i<rows.length;i++)rows[i].className="hb-item"+(i===focus?" focus":"");
       document.getElementById("technical").style.display=settings.showTechnical?"block":"none";
       document.getElementById("technical").textContent=settings.showTechnical?lastRaw:"";
     }else if(screen==="simple")renderList("simpleList",simpleItems);
     else renderList("advancedList",advancedItems);
   }
-
   function change(it,dir){
     var vals,i;
-    if(it.type==="bool"){settings[it.k]=!settings[it.k];}
-    else if(it.type==="cycle"){
-      vals=it.vals;i=vals.indexOf(settings[it.k]);if(i<0)i=0;
-      i=(i+(dir>0?1:-1)+vals.length)%vals.length;settings[it.k]=vals[i];
-    }
+    if(it.type==="bool")settings[it.k]=!settings[it.k];
+    else if(it.type==="cycle"){vals=it.vals;i=vals.indexOf(settings[it.k]);if(i<0)i=0;i=(i+(dir>0?1:-1)+vals.length)%vals.length;settings[it.k]=vals[i];}
     saveSettings();render();
   }
 
@@ -210,30 +227,24 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
       " --test-leds "+shellBool(settings.testLeds)+
       " --verbose "+shellBool(settings.verbose);
   }
-
   function parseOutput(out){
     var lines=out.split(/\r?\n/),data={},i,p,k,v;
-    for(i=0;i<lines.length;i++){
-      p=lines[i].indexOf("=");
-      if(p>0){k=lines[i].slice(0,p);v=lines[i].slice(p+1);data[k]=v;}
-    }
+    for(i=0;i<lines.length;i++){p=lines[i].indexOf("=");if(p>0){k=lines[i].slice(0,p);v=lines[i].slice(p+1);data[k]=v;}}
     return data;
   }
-
   function setBusy(on){
     busy=on;
     if(on){
       document.getElementById("resultIcon").innerHTML='<div class="spinner"></div>';
       document.getElementById("resultText").textContent="Searching for WLED…";
-      document.getElementById("resultSub").textContent="Checking the current network and Hyperion target.";
+      document.getElementById("resultSub").textContent="Checking network and Hyperion target.";
     }
   }
-
   function finish(data,raw){
-    var result=data.RESULT||"";
+    var result=data.STATUS||data.RESULT||"";
     if(!result){
-      if(data.NEW_TARGET && data.WLED_IP) result="UPDATED";
-      else if(data.TV_IP && data.WLED_IP && data.HYPERION_TARGET && data.WLED_IP===data.HYPERION_TARGET) result="OK";
+      if(data.NEW_TARGET&&data.WLED_IP)result="UPDATED";
+      else if(data.TV_IP&&data.WLED_IP&&data.HYPERION_TARGET&&data.WLED_IP===data.HYPERION_TARGET)result="OK";
       else result="ERROR";
     }
     lastRaw=raw||"";
@@ -241,11 +252,9 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
     document.getElementById("wledIp").textContent=data.WLED_IP||"—";
     document.getElementById("hyperionIp").textContent=data.NEW_TARGET||data.HYPERION_TARGET||"—";
     document.getElementById("resultIcon").textContent=result==="ERROR"?"!":"✓";
-
     if(result==="UPDATED"){
       document.getElementById("resultText").textContent="Hyperion updated";
-      document.getElementById("resultSub").textContent=(data.OLD_TARGET||"old target")+" → "+(data.NEW_TARGET||data.WLED_IP||"WLED")+
-        (data.VERIFY==="OK"?" · Hyperion reconnected successfully":"");
+      document.getElementById("resultSub").textContent=(data.OLD_TARGET||"old target")+" → "+(data.NEW_TARGET||data.WLED_IP||"WLED");
     }else if(result==="OK"){
       document.getElementById("resultText").textContent="Everything is OK";
       document.getElementById("resultSub").textContent="WLED and Hyperion already point to the same device.";
@@ -254,9 +263,8 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
       document.getElementById("resultSub").textContent=data.ERROR||"Unknown error";
     }
     busy=false;render();
-    if(settings.autoClose && result!=="ERROR"){setTimeout(function(){window.close();},3500);}
+    if(settings.autoClose&&result!=="ERROR")setTimeout(function(){window.close();},3500);
   }
-
   function runFix(){
     if(busy)return;
     setBusy(true);render();
@@ -269,13 +277,12 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
           if(r.stdoutString)out+=r.stdoutString;
           if(r.stderrString)out+=(out?"\n":"")+r.stderrString;
           if(r.error)out+=(out?"\n":"")+"ERROR="+r.error;
-        }catch(e){out="RESULT=ERROR\nERROR=Invalid service response";}
+        }catch(e){out="STATUS=ERROR\nERROR=Invalid service response";}
         finish(parseOutput(out),out);
       };
       bridge.call("luna://org.webosbrew.hbchannel.service/exec",JSON.stringify({command:buildCommand()}));
-    }catch(e){finish({RESULT:"ERROR",ERROR:"Homebrew exec service unavailable"},String(e));}
+    }catch(e){finish({STATUS:"ERROR",ERROR:"Homebrew exec service unavailable"},String(e));}
   }
-
   function activate(){
     var items,it;
     if(screen==="main"){
@@ -289,42 +296,38 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#000;color:
     if(it.action==="reset"){settings=clone(DEFAULTS);saveSettings();render();return;}
     change(it,1);
   }
-
   function renderExit(){
     var overlay=document.getElementById("exitOverlay");
-    overlay.className="exitOverlay"+(exitPrompt?" show":"");
-    document.getElementById("exitCancel").className="exitBtn"+(exitFocus===0?" focus":"");
-    document.getElementById("exitConfirm").className="exitBtn"+(exitFocus===1?" focus":"");
+    overlay.className="overlay"+(exitPrompt?" show":"");
+    document.getElementById("exitCancel").className="dialogBtn"+(exitFocus===0?" focus":"");
+    document.getElementById("exitConfirm").className="dialogBtn"+(exitFocus===1?" focus":"");
   }
   function openExit(){exitPrompt=true;exitFocus=0;renderExit();}
   function closeExit(){exitPrompt=false;renderExit();}
 
   document.addEventListener("keydown",function(e){
-    var code=e.keyCode||e.which,items,max;
+    var code=e.keyCode||e.which,items,max,it;
     if(exitPrompt){
-      if(code===37 || code===38){exitFocus=0;renderExit();e.preventDefault();return;}
-      if(code===39 || code===40){exitFocus=1;renderExit();e.preventDefault();return;}
-      if(code===13){e.preventDefault();if(exitFocus===1)window.close();else closeExit();return;}
-      if(code===461 || code===27){closeExit();e.preventDefault();return;}
+      if(code===37||code===38){exitFocus=0;renderExit();e.preventDefault();return;}
+      if(code===39||code===40){exitFocus=1;renderExit();e.preventDefault();return;}
+      if(code===13){if(exitFocus===1)window.close();else closeExit();e.preventDefault();return;}
+      if(code===461||code===27){closeExit();e.preventDefault();return;}
       return;
     }
-    if(code===461 || code===27){
+    if(code===461||code===27){
       if(screen==="advanced"){saveSettings();show("simple");}
       else if(screen==="simple"){saveSettings();show("main");}
-      else { /* main screen: BACK intentionally does nothing */ }
+      else{ /* Back stays in app */ }
       e.preventDefault();return;
     }
-    if(busy && screen==="main")return;
+    if(busy&&screen==="main")return;
     items=screen==="main"?[0,1,2]:(screen==="simple"?simpleItems:advancedItems);max=items.length;
     if(code===38){focus=(focus-1+max)%max;render();e.preventDefault();}
     else if(code===40){focus=(focus+1)%max;render();e.preventDefault();}
-    else if(code===37 || code===39){
-      if(screen!=="main"){
-        var it=items[focus];if(!it.action)change(it,code===39?1:-1);
-      }
+    else if(code===37||code===39){
+      if(screen!=="main"){it=items[focus];if(!it.action)change(it,code===39?1:-1);}
       e.preventDefault();
-    }
-    else if(code===13){activate();e.preventDefault();}
+    }else if(code===13){activate();e.preventDefault();}
   });
 
   render();
