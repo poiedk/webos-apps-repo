@@ -1,13 +1,13 @@
 {
   "id": "org.webosbrew.wifiwatch",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
   "title": "WiFi Watch",
   "icon": "icon.png",
-  "iconColor": "#14213d",
-  "bgColor": "#0b1117",
+  "iconColor": "#102b40",
+  "bgColor": "#07131f",
   "appDescription": "Wi-Fi diagnostics and monitoring for rooted LG webOS TVs",
   "disableBackHistoryAPI": true,
   "largeIcon": "largeIcon.png"
