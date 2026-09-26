@@ -62,6 +62,17 @@ jobs:
           test -n "$IPK"
           echo "IPK=$IPK" >> "$GITHUB_ENV"
           sha256sum "$IPK"
+          if [ "$APP" = "wifi-watch" ]; then
+            echo "Verifying bundled WiFi Watch service and icons..."
+            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/services/org.webosbrew.wifiwatch.service/service.js' || {
+              echo "::error::WiFi Watch service is missing from the IPK"
+              exit 1
+            }
+            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.wifiwatch/icon.png' || {
+              echo "::error::WiFi Watch PNG icon is missing from the IPK"
+              exit 1
+            }
+          fi
 
       - name: Generate matching manifest
         run: node scripts/gen-manifest.js "apps/$APP" "$IPK" "$TAG"
