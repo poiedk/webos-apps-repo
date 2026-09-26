@@ -25,6 +25,18 @@ jobs:
             ares-package --no-minify --outdir dist apps/wled-fix/app
           fi
           ls -lh dist/*.ipk
+          if [ "${{ matrix.app }}" = "wifi-watch" ]; then
+            IPK="$(find dist -maxdepth 1 -name '*.ipk' -print -quit)"
+            echo "Verifying bundled WiFi Watch service and icons..."
+            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/services/org.webosbrew.wifiwatch.service/service.js' || {
+              echo "::error::WiFi Watch service is missing from the IPK"
+              exit 1
+            }
+            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.wifiwatch/icon.png' || {
+              echo "::error::WiFi Watch PNG icon is missing from the IPK"
+              exit 1
+            }
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-ipk
