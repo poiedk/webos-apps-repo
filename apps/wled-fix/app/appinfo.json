@@ -9,6 +9,6 @@
   "iconColor": "#26173a",
   "bgColor": "#100d18",
   "largeIcon": "largeIcon.png",
-  "appDescription": "WLED discovery and Hyperion repair",
+  "appDescription": "WLED discovery, Hyperion target repair and recovery",
   "disableBackHistoryAPI": true
 }
