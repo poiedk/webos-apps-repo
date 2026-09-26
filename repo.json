@@ -14,18 +14,18 @@
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html",
       "manifest": {
         "id": "org.webosbrew.wifiwatch",
-        "version": "0.3.1",
+        "version": "0.3.2",
         "type": "web",
         "title": "WiFi Watch",
         "appDescription": "Background Wi-Fi watchdog and safe recovery for rooted LG webOS TVs.",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.1/org.webosbrew.wifiwatch_0.3.1_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.2/org.webosbrew.wifiwatch_0.3.2_all.ipk",
         "ipkHash": {
-          "sha256": "1f3ae9a01a7fc057274b2a3373538a0b94f748d8bc7b7990185854c9670e121e"
+          "sha256": "63998fed23338973d4b88ed11e79923c3b11c20d29f9579be165268b5022dd77"
         },
-        "ipkSize": 20286
+        "ipkSize": 20348
       }
     },
     {
