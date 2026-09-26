@@ -1,5 +1,5 @@
 {
   "name": "org.webosbrew.wifiwatch.service",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "main": "service.js"
 }

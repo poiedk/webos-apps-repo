@@ -75,14 +75,14 @@
     document.getElementById('ip').textContent=r.ip||'--';
     document.getElementById('gateway').textContent='Gateway '+(r.gateway||'--');
     document.getElementById('latency').textContent=r.latencyMs!=null?r.latencyMs+' ms':'--';
-    document.getElementById('signal').textContent=(r.signalDbm!=null&&r.signalDbm!==0)?r.signalDbm+' dBm':(r.signalQuality!=null?r.signalQuality+'%':'--');
+    document.getElementById('signal').textContent=(r.signalDbm!=null&&r.signalDbm!==0)?r.signalDbm+' dBm':(r.signalQuality!=null&&r.signalQuality>0?r.signalQuality+'%':'N/A');
     document.getElementById('rxDropped').textContent=fmt(r.rxDropped);
     document.getElementById('recoveries').textContent=fmt(r.recoveryCount||0);
     document.getElementById('watchdog').textContent=r.watchdogActive?'Active':(r.backgroundWatchdog?'Pending':'Off');
-    document.getElementById('autoFix').textContent=r.autoFix?'ON':'OFF';
+    document.getElementById('autoFix').textContent=r.autoFix?(r.autoFixGraceSec>0?'ARMING':'ON'):'OFF';
     document.getElementById('lastRecovery').textContent=lastRecoveryText(r);
     document.getElementById('dropDelta').textContent=r.rxDropDelta==null?'--':'+'+fmt(r.rxDropDelta);
-    document.getElementById('autoFixAction').textContent=r.autoFix?'Auto Fix ON':'Auto Fix OFF';
+    document.getElementById('autoFixAction').textContent=r.autoFix?(r.autoFixGraceSec>0?'Auto Fix ARMING':'Auto Fix ON'):'Auto Fix OFF';
     document.getElementById('fixAction').textContent=r.recoveryInProgress?'Recovering...':'Fix now';
   }
 

@@ -26,6 +26,7 @@ var DEFAULTS={
 var cfg=copy(DEFAULTS);
 var configLoaded=false,configLoading=false,configWaiters=[];
 var timer=null,collecting=false,recoveryInProgress=false;
+var serviceStartedAt=Date.now(),autoFixGraceMs=45000;
 var failures=0,lastFailure=null,previousRxDropped=null;
 var recoveryTimes=[],recoveryCount=0,lastRecovery=null,lastRecoveryResult=null;
 var last={
@@ -171,7 +172,7 @@ function buildProbeCommand(){
   q.push('QUAL="${WLINE%%|*}"; LEVEL="${WLINE#*|}"');
   q.push('QUAL="$(printf "%s" "$QUAL" | sed "s/\\.$//")"; LEVEL="$(printf "%s" "$LEVEL" | sed "s/\\.$//")"');
   q.push('if [ "$LEVEL" = "0" ] || [ "$LEVEL" = "0.0" ]; then LEVEL=""; fi');
-  q.push('QPCT="$(awk -v q="$QUAL" \'BEGIN{if(q==""){exit}; p=(q<=70?q*100/70:q); if(p>100)p=100; if(p<0)p=0; printf "%.0f",p}\')"');
+  q.push('QPCT="$(awk -v q="$QUAL" \'BEGIN{if(q=="" || q<=0){exit}; p=(q<=70?q*100/70:q); if(p>100)p=100; if(p<1){exit}; printf "%.0f",p}\')"');
   q.push('ACTIVE="$(connmanctl services 2>/dev/null | grep "^\\*A" | head -n 1)"');
   q.push('SSID="$(printf "%s\\n" "$ACTIVE" | sed "s/^\\*A[OFR]*[[:space:]]*//" | sed "s/[[:space:]]wifi_.*$//" | sed "s/[[:space:]]*$//")"');
   q.push('if [ -n "$GW" ]; then PING="$(ping -c 1 -W "$TIMEOUT" "$GW" 2>/dev/null)"; else PING=""; fi');
@@ -288,8 +289,13 @@ function runRecovery(level,source,reason,cb){
   });
 }
 
+function autoFixGraceRemaining(){
+  return Math.max(0,Math.ceil((serviceStartedAt+autoFixGraceMs-Date.now())/1000));
+}
+
 function maybeAutoRecover(r){
   if(!cfg.autoFix||recoveryInProgress)return;
+  if(autoFixGraceRemaining()>0)return;
   if(r.state!=='Problem'&&r.state!=='Offline')return;
   runRecovery('quick','auto',r.cause,function(){});
 }
@@ -306,6 +312,7 @@ function finishCollect(err,data,suppressAuto){
     last.backgroundWatchdog=cfg.backgroundWatchdog;
     last.watchdogActive=false;
     last.autoFix=cfg.autoFix;
+    last.autoFixGraceSec=autoFixGraceRemaining();
     last.iface=cfg.iface;
     last.recoveryInProgress=recoveryInProgress;
     collecting=false;
@@ -359,6 +366,7 @@ function finishCollect(err,data,suppressAuto){
     backgroundWatchdog:cfg.backgroundWatchdog,
     watchdogActive:data.HOOK_ACTIVE==='1',
     autoFix:cfg.autoFix,
+    autoFixGraceSec:autoFixGraceRemaining(),
     iface:cfg.iface,
     lastCheck:now,
     probeError:null,
@@ -433,6 +441,7 @@ function diagnosticsText(cb){
 }
 
 service.register('boot',function(m){
+  serviceStartedAt=Date.now();
   ensureConfigLoaded(function(){
     updateBootHook(function(){});
     if(cfg.backgroundWatchdog||cfg.autoFix)start();
