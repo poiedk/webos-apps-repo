@@ -11,8 +11,22 @@
       "title": "WiFi Watch",
       "shortDescription": "Wi-Fi diagnostics and monitoring for rooted LG webOS TVs.",
       "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.svg",
-      "manifestUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/manifests/org.webosbrew.wifiwatch.json",
-      "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html"
+      "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html",
+      "manifest": {
+        "id": "org.webosbrew.wifiwatch",
+        "version": "0.2.0",
+        "type": "web",
+        "title": "WiFi Watch",
+        "appDescription": "Wi-Fi diagnostics and monitoring for rooted LG webOS TVs.",
+        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.svg",
+        "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
+        "rootRequired": true,
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.2.0/org.webosbrew.wifiwatch_0.2.0_all.ipk",
+        "ipkHash": {
+          "sha256": "70deb7b3c44d471c32e0fbb22b89dcf22cdad3904c3e66e73c654462be084823"
+        },
+        "ipkSize": 5676
+      }
     },
     {
       "id": "org.webosbrew.wledfix",
