@@ -1,0 +1,14 @@
+{
+  "id": "org.webosbrew.wledfix",
+  "version": "1.1.3",
+  "vendor": "poiedk",
+  "type": "web",
+  "main": "index.html",
+  "title": "WLED Fix",
+  "icon": "icon.png",
+  "iconColor": "#11151d",
+  "bgColor": "#11151d",
+  "largeIcon": "largeIcon.png",
+  "appDescription": "WLED discovery and Hyperion repair",
+  "disableBackHistoryAPI": true
+}

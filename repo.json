@@ -1,33 +1,19 @@
 {
-  "name": "poiedk webOS Apps",
+  "paging": {"page":1,"count":2,"maxPage":1,"itemsTotal":2},
   "packages": [
     {
       "id": "org.webosbrew.wifiwatch",
       "title": "WiFi Watch",
       "shortDescription": "Wi-Fi diagnostics and monitoring for rooted LG webOS TVs.",
-      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-wifi-watch/main/app/icon.svg",
-      "manifestUrl": "https://github.com/poiedk/webos-wifi-watch/releases/latest/download/org.webosbrew.wifiwatch.manifest.json"
+      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.svg",
+      "manifestUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/manifests/org.webosbrew.wifiwatch.json"
     },
     {
       "id": "org.webosbrew.wledfix",
       "title": "WLED Fix",
       "shortDescription": "WLED discovery and Hyperion repair for rooted LG webOS TVs.",
-      "iconUri": "https://raw.githubusercontent.com/poiedk/wled-fix-webos/main/app/icon.png",
-      "manifest": {
-        "id": "org.webosbrew.wledfix",
-        "version": "1.1.2",
-        "type": "web",
-        "title": "WLED Fix",
-        "appDescription": "WLED discovery and Hyperion repair",
-        "iconUri": "https://raw.githubusercontent.com/poiedk/wled-fix-webos/main/app/icon.png",
-        "sourceUrl": "https://github.com/poiedk/wled-fix-webos",
-        "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/wled-fix-webos/releases/download/v1.1.2/org.webosbrew.wledfix_1.1.2_all.ipk",
-        "ipkHash": {
-          "sha256": "fcc254e9531d87d892a32180253f49db5093efa22e1f40f78b62e187950a6d81"
-        },
-        "ipkSize": 9612
-      }
+      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
+      "manifestUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/manifests/org.webosbrew.wledfix.json"
     }
   ]
 }

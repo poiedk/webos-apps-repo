@@ -1,0 +1,9 @@
+{
+  "id": "org.webosbrew.wifiwatch",
+  "version": "0.1.0",
+  "vendor": "Homebrew",
+  "type": "web",
+  "main": "index.html",
+  "title": "WiFi Watch",
+  "icon": "icon.svg"
+}

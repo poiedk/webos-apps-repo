@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WiFi Watch</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <main class="shell">
+    <header><h1>WiFi Watch</h1><div id="clock"></div></header>
+    <section class="hero card">
+      <div id="dot" class="dot idle"></div>
+      <div><h2 id="state">Starting…</h2><div id="ssid" class="muted">—</div></div>
+      <div class="right"><div id="ip">—</div><div id="gateway" class="muted">Gateway —</div></div>
+    </section>
+    <section class="grid">
+      <div class="card"><span>Gateway latency</span><strong id="latency">—</strong></div>
+      <div class="card"><span>RX packets</span><strong id="rxPackets">—</strong></div>
+      <div class="card"><span>RX dropped</span><strong id="rxDropped">—</strong></div>
+      <div class="card"><span>Last failure</span><strong id="lastFailure">Never</strong></div>
+    </section>
+    <section class="card details">
+      <div><span>Interface</span><b id="iface">wlan0</b></div>
+      <div><span>Association</span><b id="assoc">—</b></div>
+      <div><span>ConnMan</span><b id="connman">—</b></div>
+      <div><span>Monitor</span><b id="monitor">—</b></div>
+    </section>
+    <nav>
+      <button id="refresh" tabindex="0">Refresh</button>
+      <button id="monitorToggle" tabindex="0">Start monitoring</button>
+      <button id="diagnostics" tabindex="0">Diagnostics</button>
+      <button id="settings" tabindex="0">Settings</button>
+    </nav>
+    <pre id="diag" class="card hidden"></pre>
+  </main>
+  <script src="js/app.js"></script>
+</body>
+</html>

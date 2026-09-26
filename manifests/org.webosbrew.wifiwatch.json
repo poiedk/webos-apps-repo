@@ -1,0 +1,11 @@
+{
+  "id":"org.webosbrew.wifiwatch",
+  "version":"0.1.0",
+  "type":"web",
+  "title":"WiFi Watch",
+  "appDescription":"Wi-Fi diagnostics and monitoring for rooted LG webOS TVs.",
+  "iconUri":"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.svg",
+  "sourceUrl":"https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
+  "rootRequired":true,
+  "releasePending":true
+}

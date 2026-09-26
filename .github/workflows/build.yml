@@ -1,0 +1,32 @@
+name: Build webOS apps
+on:
+  push:
+    branches: [main]
+    paths: ['apps/**','scripts/**','.github/workflows/**']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        app: [wifi-watch, wled-fix]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm install --global @webos-tools/cli
+      - name: Build
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.app }}" = "wifi-watch" ]; then
+            ares-package --check apps/wifi-watch/app apps/wifi-watch/service
+            ares-package --no-minify --outdir dist apps/wifi-watch/app apps/wifi-watch/service
+          else
+            ares-package --no-minify --outdir dist apps/wled-fix/app
+          fi
+          ls -lh dist/*.ipk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-ipk
+          path: dist/*.ipk
+          if-no-files-found: error

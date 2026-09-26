@@ -1,0 +1,11 @@
+{
+  "services": [{
+    "name": "org.webosbrew.wifiwatch.service",
+    "description": "WiFi Watch background monitor",
+    "commands": [
+      {"name":"status"},
+      {"name":"toggleMonitor"},
+      {"name":"diagnostics"}
+    ]
+  }]
+}

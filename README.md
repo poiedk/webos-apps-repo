@@ -1,10 +1,8 @@
-# poiedk webOS Apps Repository
+# poiedk webOS Apps
 
-Personal Homebrew repository for webOS applications maintained by **poiedk**.
+Personal monorepo and Homebrew catalog for webOS applications maintained by **poiedk**.
 
-## Repository URL
-
-Add this URL to a compatible webOS Homebrew repository client:
+## Homebrew repository URL
 
 ```
 https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/repo.json
@@ -12,21 +10,27 @@ https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/repo.json
 
 ## Apps
 
-### WiFi Watch
-
-Network diagnostics and Wi-Fi monitoring for rooted LG webOS TVs.
-
-Source:
-https://github.com/poiedk/webos-wifi-watch
-
-The catalog points to the latest release manifest from the app repository, so updates can be delivered without changing this repository entry.
+- **WiFi Watch** — `apps/wifi-watch/`
+- **WLED Fix** — `apps/wled-fix/`
 
 ## Layout
 
 ```
+apps/
+  wifi-watch/
+    app/
+    service/
+  wled-fix/
+    app/
+manifests/
 repo.json
-packages/
-  org.webosbrew.wifiwatch.json
+scripts/
+.github/workflows/
 ```
 
-More poiedk webOS applications can be added under `packages/`.
+Each app keeps independent versioning. Release tags are:
+
+- `wifi-watch-vX.Y.Z`
+- `wled-fix-vX.Y.Z`
+
+The old per-app repositories are kept only as backups during migration.
