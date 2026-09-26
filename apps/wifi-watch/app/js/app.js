@@ -35,6 +35,24 @@
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   }
 
+  function formatCheckTime(v){
+    if(!v)return '--';
+    try{
+      var d=new Date(v),h=d.getHours(),m=d.getMinutes(),s=d.getSeconds();
+      return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    }catch(e){return '--';}
+  }
+
+  function renderServiceError(e){
+    var badge=document.getElementById('stateBadge');
+    badge.className='badge fail';
+    badge.textContent='ERR';
+    document.getElementById('state').textContent='Service unavailable';
+    var msg=(e&&(e.errorText||e.errorCode||e.message))||'Background service is not running';
+    document.getElementById('ssid').textContent=String(msg);
+    document.getElementById('monitor').textContent='Unavailable';
+  }
+
   function renderStatus(r){
     current=r||{};
     var badge=document.getElementById('stateBadge');
@@ -42,7 +60,7 @@
     document.getElementById('state').textContent=state;
     badge.className='badge '+(state==='Connected'?'ok':(state==='Problem'?'fail':(state==='Degraded'?'warn':'idle')));
     badge.textContent=state==='Connected'?'OK':(state==='Problem'?'ERR':(state==='Degraded'?'WARN':'--'));
-    document.getElementById('ssid').textContent=r.ssid||'No SSID';
+    document.getElementById('ssid').textContent=(r.ssid||'No SSID')+' | checked '+formatCheckTime(r.lastCheck);
     document.getElementById('ip').textContent=r.ip||'--';
     document.getElementById('gateway').textContent='Gateway '+(r.gateway||'--');
     document.getElementById('latency').textContent=r.latencyMs!=null?r.latencyMs+' ms':'--';
@@ -58,7 +76,7 @@
 
   function refresh(){
     if(busy)return;
-    call('status',{},function(e,r){if(!e)renderStatus(r);});
+    call('status',{},function(e,r){if(e)renderServiceError(e);else renderStatus(r);});
   }
 
   function setScreen(id){
@@ -101,7 +119,8 @@
 
   function loadSettings(openScreen){
     call('getSettings',{},function(e,r){
-      if(!e&&r.settings)settings=r.settings;
+      if(e){renderServiceError(e);setScreen('home');return;}
+      if(r.settings)settings=r.settings;
       if(openScreen)setScreen(openScreen);else renderFocus();
     });
   }
@@ -140,7 +159,7 @@
     var items,it;
     if(screen==='home'){
       if(focus===0)refresh();
-      else if(focus===1)call('toggleMonitor',{},function(){refresh();});
+      else if(focus===1)call('toggleMonitor',{},function(e){if(e)renderServiceError(e);else refresh();});
       else if(focus===2)showDiagnostics();
       else if(focus===3)loadSettings('settings');
       else exitApp();
