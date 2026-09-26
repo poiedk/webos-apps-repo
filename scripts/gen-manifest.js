@@ -5,7 +5,7 @@ const info=JSON.parse(fs.readFileSync(path.join(appDir,'app','appinfo.json'),'ut
 const manifest={
   id:info.id,version:info.version,type:info.type||'web',title:info.title,
   appDescription:info.appDescription||info.title,
-  iconUri:'https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/'+appDir+'/app/'+info.icon,
+  iconUri:'https://github.com/poiedk/webos-apps-repo/releases/download/'+tag+'/icon.png',
   sourceUrl:'https://github.com/poiedk/webos-apps-repo/tree/main/'+appDir,
   rootRequired:true,
   ipkUrl:'https://github.com/poiedk/webos-apps-repo/releases/download/'+tag+'/'+path.basename(ipk),
