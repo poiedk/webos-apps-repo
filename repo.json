@@ -14,18 +14,18 @@
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html",
       "manifest": {
         "id": "org.webosbrew.wifiwatch",
-        "version": "0.2.1",
+        "version": "0.2.2",
         "type": "web",
         "title": "WiFi Watch",
         "appDescription": "Wi-Fi diagnostics and monitoring for rooted LG webOS TVs.",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.2.1/org.webosbrew.wifiwatch_0.2.1_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.2.2/org.webosbrew.wifiwatch_0.2.2_all.ipk",
         "ipkHash": {
-          "sha256": "dce0d7cb6b30815a1d39536897acdd2623603d5516a780efe2ac7c5934529ced"
+          "sha256": "cfea44c4827d6fd3f51e57774f33ef9b3961d00a92f862bc88dd9a50f70db370"
         },
-        "ipkSize": 16102
+        "ipkSize": 16106
       }
     },
     {
@@ -36,18 +36,18 @@
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wled-fix.html",
       "manifest": {
         "id": "org.webosbrew.wledfix",
-        "version": "1.1.11",
+        "version": "1.1.12",
         "type": "web",
         "title": "WLED Fix",
         "appDescription": "WLED discovery and Hyperion repair",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wled-fix",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.11/org.webosbrew.wledfix_1.1.11_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.12/org.webosbrew.wledfix_1.1.12_all.ipk",
         "ipkHash": {
-          "sha256": "f0099f41020c871206bbe32505d313d286be929d469fc2ecc2efb8a4aed6ae74"
+          "sha256": "ae2f7b65d2ada5f2a6b442dc931aede13a0fcc05505e4ab0738a8f617941beda"
         },
-        "ipkSize": 8748
+        "ipkSize": 8736
       }
     }
   ]
