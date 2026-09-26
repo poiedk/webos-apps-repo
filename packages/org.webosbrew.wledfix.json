@@ -1,0 +1,13 @@
+{
+  "id": "org.webosbrew.wledfix",
+  "title": "WLED Fix",
+  "version": "1.1.2",
+  "shortDescription": "WLED discovery and Hyperion repair for rooted LG webOS TVs.",
+  "description": "Discovers WLED controllers and helps repair or restore the Hyperion/WLED connection on rooted LG webOS TVs.",
+  "category": "amblight",
+  "pool": "main",
+  "iconUri": "https://raw.githubusercontent.com/poiedk/wled-fix-webos/main/app/icon.png",
+  "sourceUrl": "https://github.com/poiedk/wled-fix-webos",
+  "releaseUrl": "https://github.com/poiedk/wled-fix-webos/releases/tag/v1.1.2",
+  "rootRequired": true
+}
