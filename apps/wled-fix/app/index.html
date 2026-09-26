@@ -65,7 +65,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1117;col
       <div class="title">WLED Fix</div>
       <div class="subtitle">Hyperion and WLED recovery</div>
     </div>
-    <div class="version">v1.1.9</div>
+    <div class="version">v1.1.10</div>
   </div>
 
   <section id="main" class="screen active home">
@@ -111,7 +111,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1117;col
     </div>
 
     <div id="technical" class="tech"></div>
-    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.1.9</span></div>
+    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.1.10</span></div>
   </section>
 
   <section id="simple" class="screen settingsPage">
@@ -140,12 +140,12 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1117;col
   function loadSettings(){
     var s=copy(DEFAULTS),raw,x,k;
     try{
-      raw=localStorage.getItem("wledfix.settings.v1");
+      raw=localStorage.getItem("wledfix.settings.v2");
       if(raw){x=JSON.parse(raw);for(k in s){if(typeof x[k]!=="undefined")s[k]=x[k];}}
     }catch(e){}
     return s;
   }
-  function saveSettings(){try{localStorage.setItem("wledfix.settings.v1",JSON.stringify(settings));}catch(e){}}
+  function saveSettings(){try{localStorage.setItem("wledfix.settings.v2",JSON.stringify(settings));}catch(e){}}
 
   var simpleItems=[
     {k:"autoScan",label:"Auto scan on launch",hint:"Run a connection check when WLED Fix opens",type:"bool"},
@@ -221,7 +221,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1117;col
   function shellBool(v){return v?"1":"0";}
   function buildCommand(){
     var p="/media/developer/apps/usr/palm/applications/org.webosbrew.wledfix/wled-auto.sh";
-    return "sh "+p+
+    return "(sh "+p+
       " --iface "+settings.iface+
       " --timeout "+settings.timeout+
       " --instance "+settings.instance+
@@ -232,7 +232,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#0b1117;col
       " --backup "+shellBool(settings.backup)+
       " --keep-backups "+settings.keepBackups+
       " --test-leds "+shellBool(settings.testLeds)+
-      " --verbose "+shellBool(settings.verbose);
+      " --verbose "+shellBool(settings.verbose)+" 2>&1; rc=$?; echo EXIT_CODE=$rc; exit 0)";
   }
 
   function execCommand(command,cb){
