@@ -54,6 +54,10 @@ jobs:
         run: |
           mkdir -p dist
           if [ "$APP" = "wifi-watch" ]; then
+            node --check apps/wifi-watch/service/service.js
+            node --check apps/wifi-watch/app/js/app.js
+            sh -n apps/wifi-watch/service/autostart.sh
+            test -x apps/wifi-watch/service/autostart.sh
             ares-package --no-minify --outdir dist apps/wifi-watch/app apps/wifi-watch/service
           else
             ares-package --no-minify --outdir dist apps/wled-fix/app
@@ -70,6 +74,10 @@ jobs:
             }
             ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.wifiwatch/icon.png' || {
               echo "::error::WiFi Watch PNG icon is missing from the IPK"
+              exit 1
+            }
+            ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/services/org.webosbrew.wifiwatch.service/autostart.sh' || {
+              echo "::error::WiFi Watch autostart hook is missing or not executable in the IPK"
               exit 1
             }
           fi
