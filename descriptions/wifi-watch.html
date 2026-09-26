@@ -1,12 +1,15 @@
 <h2>WiFi Watch</h2>
-<p>Wi-Fi monitoring and diagnostics for rooted LG webOS TVs.</p>
-<p>WiFi Watch continuously checks the TV network connection and helps diagnose intermittent Wi-Fi failures without requiring SSH to stay connected.</p>
+<p>Background Wi-Fi watchdog, diagnostics and safe recovery for rooted LG webOS TVs.</p>
+<p>WiFi Watch monitors the TV network connection continuously, starts automatically after boot, records failures and can safely recover Wi-Fi when a real connectivity problem is confirmed.</p>
 <ul>
-  <li>Shows SSID, TV IP address and gateway status</li>
-  <li>Measures gateway latency</li>
-  <li>Tracks RX packets and dropped packets</li>
-  <li>Checks wlan0 operstate and ConnMan association</li>
-  <li>Captures routes, ARP, wireless status and recent kernel messages when a failure occurs</li>
-  <li>Keeps a rotating local diagnostic log</li>
+  <li>Background watchdog that can start automatically after TV boot</li>
+  <li>Shows SSID, TV IP address, gateway status and gateway latency</li>
+  <li>Tracks RX dropped packets and short-term drop delta</li>
+  <li>Monitors wlan0 state and ConnMan connectivity</li>
+  <li>Optional Auto Fix with recovery cooldown and loop protection</li>
+  <li>Manual quick recovery and full Wi-Fi restart</li>
+  <li>Boot grace period to avoid unnecessary recovery while Wi-Fi is still starting</li>
+  <li>Stores recovery history and the last failure snapshot</li>
+  <li>Captures routes, ARP, wireless state, ConnMan information and recent kernel messages for diagnostics</li>
 </ul>
-<p><strong>Version 0.1.0</strong> is diagnostic-only and does not automatically restart networking.</p>
+<p>Requires a rooted LG webOS TV with Homebrew Channel. Auto Fix can be enabled or disabled from the application.</p>
