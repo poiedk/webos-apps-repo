@@ -16,7 +16,7 @@ VERBOSE="0"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --interface) IFACE="$2"; shift 2 ;;
+    --interface|--iface) IFACE="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
     --instance) INSTANCE="$2"; shift 2 ;;
     --fast) FAST="$2"; shift 2 ;;
@@ -49,7 +49,23 @@ log "Subnet $NET.0/24 via $IFACE"
 
 OLD=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE;" 2>/dev/null |
   sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
-[ -n "$OLD" ] || fail "Could not read Hyperion WLED host for instance $INSTANCE"
+
+if [ -z "$OLD" ]; then
+  AUTO_ROW=$(sqlite3 -separator '|' "$DB" "SELECT hyperion_inst, config FROM settings WHERE type='device' ORDER BY hyperion_inst;" 2>/dev/null |
+    grep '"host":"' | head -n 1)
+  AUTO_INSTANCE=$(echo "$AUTO_ROW" | cut -d'|' -f1)
+  AUTO_CONFIG=$(echo "$AUTO_ROW" | cut -d'|' -f2-)
+  AUTO_OLD=$(echo "$AUTO_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
+
+  if [ -n "$AUTO_INSTANCE" ] && [ -n "$AUTO_OLD" ]; then
+    echo "INSTANCE_FALLBACK=$INSTANCE->$AUTO_INSTANCE"
+    INSTANCE="$AUTO_INSTANCE"
+    OLD="$AUTO_OLD"
+  fi
+fi
+
+[ -n "$OLD" ] || fail "No Hyperion WLED device configuration found"
+echo "HYPERION_INSTANCE=$INSTANCE"
 echo "HYPERION_TARGET=$OLD"
 
 is_wled(){
