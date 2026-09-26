@@ -90,4 +90,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
-          gh release upload "$TAG" "$IPK" dist/*.manifest.json --clobber
+          gh release upload "$TAG" "$IPK" dist/*.manifest.json "apps/$APP/app/icon.png" "apps/$APP/app/largeIcon.png" --clobber
