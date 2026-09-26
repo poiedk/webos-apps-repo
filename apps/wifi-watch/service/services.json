@@ -5,7 +5,11 @@
     "commands": [
       {"name":"status"},
       {"name":"toggleMonitor"},
-      {"name":"diagnostics"}
+      {"name":"diagnostics"},
+      {"name":"getSettings"},
+      {"name":"setSettings"},
+      {"name":"clearLog"},
+      {"name":"closeApp"}
     ]
   }]
 }
