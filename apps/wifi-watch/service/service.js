@@ -109,7 +109,8 @@ function collect(){
     association:oper||'unknown',
     connman:active?'connected':'unknown',
     monitoring:!!timer,
-    iface:IF
+    iface:IF,
+    lastCheck:new Date().toISOString()
   };
 
   if(!ok)log(new Date().toISOString()+' state='+state+' failures='+failures+' oper='+oper+' ip='+(last.ip||'-')+' gateway='+(GW||'-'));
