@@ -9,7 +9,7 @@
     {
       "id": "org.webosbrew.wifiwatch",
       "title": "WiFi Watch",
-      "shortDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery for rooted LG webOS TVs.",
+      "shortDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery.",
       "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.png",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html",
       "manifest": {
@@ -17,7 +17,7 @@
         "version": "0.3.3",
         "type": "web",
         "title": "WiFi Watch",
-        "appDescription": "Background Wi-Fi watchdog and safe recovery for rooted LG webOS TVs.",
+        "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery.",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
         "rootRequired": true,
@@ -31,7 +31,7 @@
     {
       "id": "org.webosbrew.wledfix",
       "title": "WLED Fix",
-      "shortDescription": "WLED discovery and Hyperion repair for rooted LG webOS TVs.",
+      "shortDescription": "WLED discovery, Hyperion target repair and recovery.",
       "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wled-fix.html",
       "manifest": {
@@ -39,7 +39,7 @@
         "version": "1.1.12",
         "type": "web",
         "title": "WLED Fix",
-        "appDescription": "WLED discovery and Hyperion repair",
+        "appDescription": "WLED discovery, Hyperion target repair and recovery.",
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wled-fix",
         "rootRequired": true,
