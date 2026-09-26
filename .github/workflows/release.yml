@@ -35,11 +35,11 @@ jobs:
           elif [[ "$GITHUB_REF_NAME" == wled-fix-v* ]]; then
             APP="wled-fix"
             TAG="$GITHUB_REF_NAME"
-          elif git show --pretty='' --name-only "$GITHUB_SHA" | grep -q '^.release/wifi-watch-'; then
+          elif [[ "$(git log -1 --pretty=%s)" == "release: trigger WiFi Watch "* ]]; then
             APP="wifi-watch"
             VERSION="$(node -p "require('./apps/wifi-watch/app/appinfo.json').version")"
             TAG="wifi-watch-v$VERSION"
-          elif git show --pretty='' --name-only "$GITHUB_SHA" | grep -q '^.release/wled-fix-'; then
+          elif [[ "$(git log -1 --pretty=%s)" == "release: trigger WLED Fix "* ]]; then
             APP="wled-fix"
             VERSION="$(node -p "require('./apps/wled-fix/app/appinfo.json').version")"
             TAG="wled-fix-v$VERSION"
