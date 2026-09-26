@@ -3,18 +3,23 @@
   var screen='home',focus=0,current={},settings=null,busy=false;
 
   var simpleItems=[
-    {k:'autoMonitor',label:'Auto monitoring',hint:'Start monitoring automatically after service launch',type:'bool'},
-    {k:'intervalSec',label:'Check interval',hint:'How often WiFi Watch tests the connection',type:'cycle',vals:[5,10,15,30],suffix:' sec'},
-    {k:'failureThreshold',label:'Failure threshold',hint:'Consecutive failed checks before Problem state',type:'cycle',vals:[1,2,3,5]},
-    {action:'advanced',label:'Advanced settings',hint:'Interface, ping timeout and log controls',value:'OPEN'}
+    {k:'backgroundWatchdog',label:'Background watchdog',hint:'Start WiFi Watch automatically after TV boot',type:'bool'},
+    {k:'autoFix',label:'Auto Fix',hint:'Reconnect Wi-Fi automatically after a confirmed failure',type:'bool'},
+    {k:'intervalSec',label:'Check interval',hint:'How often the watchdog tests the gateway',type:'cycle',vals:[5,10,15,30],suffix:' sec'},
+    {k:'failureThreshold',label:'Failure threshold',hint:'Failed checks before recovery is allowed',type:'cycle',vals:[1,2,3,5]},
+    {k:'recoveryCooldownSec',label:'Recovery cooldown',hint:'Minimum delay between automatic recoveries',type:'cycle',vals:[30,60,120,300],suffix:' sec'},
+    {action:'advanced',label:'Advanced settings',hint:'Recovery limits, interface and diagnostics',value:'OPEN'}
   ];
 
   var advancedItems=[
-    {k:'iface',label:'Network interface',hint:'Interface used for Wi-Fi monitoring',type:'cycle',vals:['wlan0','eth0']},
+    {k:'aggressiveFix',label:'Aggressive recovery',hint:'Allow Wi-Fi OFF/ON if a quick reconnect fails',type:'bool'},
+    {k:'iface',label:'Network interface',hint:'Interface used by the watchdog',type:'cycle',vals:['wlan0','eth0']},
     {k:'pingTimeout',label:'Ping timeout',hint:'Gateway ping timeout',type:'cycle',vals:[1,2,3],suffix:' sec'},
-    {k:'logSizeMB',label:'Log size',hint:'Rotate the diagnostic log after this size',type:'cycle',vals:[1,2,5],suffix:' MB'},
-    {action:'clearLog',label:'Clear diagnostic log',hint:'Delete the current and rotated logs',value:'CLEAR',danger:true},
-    {action:'reset',label:'Reset defaults',hint:'Restore default WiFi Watch settings',value:'RESET',danger:true}
+    {k:'maxRecoveries',label:'Max recoveries',hint:'Maximum recovery attempts within 10 minutes',type:'cycle',vals:[1,2,3,5]},
+    {k:'logSizeMB',label:'Log size',hint:'Local watchdog log size before rotation',type:'cycle',vals:[1,2,5],suffix:' MB'},
+    {action:'fullFix',label:'Full Wi-Fi restart',hint:'Turn Wi-Fi off/on and reconnect now',value:'RUN'},
+    {action:'clearHistory',label:'Clear history',hint:'Delete recovery history and last failure snapshot',value:'CLEAR',danger:true},
+    {action:'reset',label:'Reset defaults',hint:'Restore safe WiFi Watch defaults',value:'RESET',danger:true}
   ];
 
   function call(method,params,cb){
@@ -35,7 +40,7 @@
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   }
 
-  function formatCheckTime(v){
+  function checkTime(v){
     if(!v)return '--';
     try{
       var d=new Date(v),h=d.getHours(),m=d.getMinutes(),s=d.getSeconds();
@@ -48,30 +53,31 @@
     badge.className='badge fail';
     badge.textContent='ERR';
     document.getElementById('state').textContent='Service unavailable';
-    var msg=(e&&(e.errorText||e.errorCode||e.message))||'Background service is not running';
-    document.getElementById('ssid').textContent=String(msg);
-    document.getElementById('monitor').textContent='Unavailable';
+    document.getElementById('ssid').textContent=String((e&&(e.errorText||e.errorCode||e.message))||'Background service is not running');
+    document.getElementById('autoFix').textContent='--';
   }
 
   function renderStatus(r){
     current=r||{};
     var badge=document.getElementById('stateBadge');
     var state=r.state||'Unknown';
-    document.getElementById('state').textContent=state;
-    badge.className='badge '+(state==='Connected'?'ok':(state==='Problem'?'fail':(state==='Degraded'?'warn':'idle')));
-    badge.textContent=state==='Connected'?'OK':(state==='Problem'?'ERR':(state==='Degraded'?'WARN':'--'));
-    document.getElementById('ssid').textContent=(r.ssid||'No SSID')+' | checked '+formatCheckTime(r.lastCheck);
+    var fail=(state==='Problem'||state==='Offline'||state==='Unavailable');
+    document.getElementById('state').textContent=r.recoveryInProgress?'Recovering...':state;
+    badge.className='badge '+(state==='Connected'?'ok':(fail?'fail':(state==='Degraded'?'warn':'idle')));
+    badge.textContent=r.recoveryInProgress?'FIX':(state==='Connected'?'OK':(fail?'ERR':(state==='Degraded'?'WARN':'--')));
+    document.getElementById('ssid').textContent=(r.ssid||'No SSID')+' | '+(r.cause||'')+' | '+checkTime(r.lastCheck);
     document.getElementById('ip').textContent=r.ip||'--';
     document.getElementById('gateway').textContent='Gateway '+(r.gateway||'--');
     document.getElementById('latency').textContent=r.latencyMs!=null?r.latencyMs+' ms':'--';
-    document.getElementById('rxPackets').textContent=fmt(r.rxPackets);
+    document.getElementById('signal').textContent=r.signalDbm!=null?r.signalDbm+' dBm':'--';
     document.getElementById('rxDropped').textContent=fmt(r.rxDropped);
-    document.getElementById('failures').textContent=fmt(r.failureCount||0);
-    document.getElementById('iface').textContent=r.iface||'--';
-    document.getElementById('assoc').textContent=r.association||'--';
+    document.getElementById('recoveries').textContent=fmt(r.recoveryCount||0);
+    document.getElementById('iface').textContent=(r.iface||'--')+' · '+(r.association||'--');
     document.getElementById('connman').textContent=r.connman||'--';
-    document.getElementById('monitor').textContent=r.monitoring?'Running':'Stopped';
-    document.getElementById('monitorAction').textContent=r.monitoring?'Stop monitor':'Start monitor';
+    document.getElementById('dropDelta').textContent=r.rxDropDelta==null?'--':'+'+fmt(r.rxDropDelta);
+    document.getElementById('autoFix').textContent=r.autoFix?'ON':'OFF';
+    document.getElementById('autoFixAction').textContent=r.autoFix?'Auto Fix ON':'Auto Fix OFF';
+    document.getElementById('fixAction').textContent=r.recoveryInProgress?'Recovering...':'Fix now';
   }
 
   function refresh(){
@@ -125,9 +131,14 @@
     });
   }
 
-  function savePatch(patch){
+  function savePatch(patch,cb){
     call('setSettings',{settings:patch},function(e,r){
-      if(!e&&r.settings){settings=r.settings;renderFocus();refresh();}
+      if(!e&&r.settings){
+        settings=r.settings;
+        renderFocus();
+        refresh();
+      }
+      if(cb)cb(e,r);
     });
   }
 
@@ -142,9 +153,27 @@
     savePatch(patch);
   }
 
+  function fixNow(level){
+    if(busy)return;
+    busy=true;
+    document.getElementById('state').textContent=level==='full'?'Restarting Wi-Fi...':'Recovering Wi-Fi...';
+    document.getElementById('stateBadge').className='badge warn';
+    document.getElementById('stateBadge').textContent='FIX';
+    document.getElementById('fixAction').textContent='Recovering...';
+    call('fixNow',{level:level||'quick'},function(e,r){
+      busy=false;
+      if(e){renderServiceError(e);return;}
+      if(r&&r.status)renderStatus(r.status);else refresh();
+    });
+  }
+
+  function toggleAutoFix(){
+    savePatch({autoFix:!current.autoFix});
+  }
+
   function showDiagnostics(){
     setScreen('diagnostics');
-    document.getElementById('diag').textContent='Loading diagnostics...';
+    document.getElementById('diag').textContent='Loading diagnostics and history...';
     call('diagnostics',{},function(e,r){
       document.getElementById('diag').textContent=e?('Diagnostics error: '+JSON.stringify(e)):(r.text||'No diagnostic data');
     });
@@ -158,8 +187,8 @@
   function activate(){
     var items,it;
     if(screen==='home'){
-      if(focus===0)refresh();
-      else if(focus===1)call('toggleMonitor',{},function(e){if(e)renderServiceError(e);else refresh();});
+      if(focus===0)fixNow('quick');
+      else if(focus===1)toggleAutoFix();
       else if(focus===2)showDiagnostics();
       else if(focus===3)loadSettings('settings');
       else exitApp();
@@ -174,8 +203,9 @@
     it=items[focus];
 
     if(it.action==='advanced'){loadSettings('advanced');return;}
-    if(it.action==='clearLog'){
-      call('clearLog',{},function(){document.getElementById('diag').textContent='';});
+    if(it.action==='fullFix'){setScreen('home');fixNow('full');return;}
+    if(it.action==='clearHistory'){
+      call('clearHistory',{},function(){refresh();});
       return;
     }
     if(it.action==='reset'){
@@ -220,5 +250,6 @@
   },1000);
 
   setInterval(function(){if(screen==='home')refresh();},5000);
-  renderFocus();refresh();
+  renderFocus();
+  refresh();
 }());

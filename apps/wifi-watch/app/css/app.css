@@ -1,28 +1,28 @@
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#07131f;color:#f3f8fc;font-family:Arial,Helvetica,sans-serif}
-.app{height:100%;padding:22px 34px 16px}
-.header{height:66px;border-bottom:1px solid #1f4666;display:flex;align-items:center}
-.logo{width:44px;height:44px;margin-right:12px}
-.brand{flex:1}.title{font-size:44px;font-weight:300;line-height:40px}.subtitle{font-size:20px;color:#93b7ce;margin-top:2px}.version{font-size:19px;color:#7598ae}
-.screen{display:none;height:calc(100% - 66px)}.screen.active{display:block}
-.home{padding-top:16px}
-.status{height:110px;background:#0d1c29;border:1px solid #1d4d70;padding:16px 20px;display:flex;align-items:center}
-.badge{width:64px;height:64px;border-radius:32px;border:2px solid #55758a;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;margin-right:18px;background:#102536}
-.badge.ok{background:#0f3b32;border-color:#32d49a}.badge.warn{background:#443414;border-color:#f2b84b}.badge.fail{background:#421c28;border-color:#f05d7f}
-.statusText{min-width:0;flex:1}.statusTitle{font-size:38px;font-weight:700}.statusSub{font-size:21px;color:#b5ccdb;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.statusRight{text-align:right;margin-left:20px}.statusIp{font-size:32px;font-weight:700}.statusGateway{font-size:18px;color:#86a9bf;margin-top:5px}
-.metrics{height:104px;margin-top:12px;display:flex}
-.metric{height:104px;background:#0b1a27;border:1px solid #1b4562;padding:13px 15px;flex:1;margin-right:10px}.metric.last{margin-right:0}
-.metricLabel{font-size:17px;color:#80a9c1;text-transform:uppercase}.metricValue{font-size:34px;font-weight:700;margin-top:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.details{height:78px;margin-top:10px;display:flex}
-.detail{height:78px;background:#0b1a27;border:1px solid #1b4562;padding:10px 14px;flex:1;margin-right:10px}.detail.last{margin-right:0}
-.detail span{display:block;font-size:16px;color:#80a9c1;text-transform:uppercase}.detail b{display:block;font-size:24px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.actions{height:78px;margin-top:12px;display:flex}
-.action{height:78px;background:#0b1a27;border:2px solid #1b4562;flex:1;margin-right:9px;padding:0 12px;display:flex;align-items:center;justify-content:center;text-align:center}
-.action.last{margin-right:0}.action.focus{background:#102b40;border-color:#26c6ff;box-shadow:0 0 0 2px #26c6ff inset}.actionTitle{font-size:25px;font-weight:700}.action.focus .actionTitle{color:#e9f9ff}
-.help{position:absolute;left:34px;right:34px;bottom:16px;border-top:1px solid #1f4666;padding-top:7px;color:#7598ae;font-size:16px;display:flex;justify-content:space-between}
-.page{padding-top:14px}.pageTitle{font-size:38px;font-weight:300;margin-bottom:10px}
-.list{width:100%}.row{height:64px;background:#0b1a27;border:1px solid #173d57;margin-bottom:7px;padding:0 16px;display:flex;align-items:center}
-.row.focus{background:#102b40;border-color:#26c6ff;border-left-width:6px;padding-left:11px}.rowText{flex:1;min-width:0}.rowTitle{font-size:25px;font-weight:700}.rowHint{font-size:17px;color:#86a9bf;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rowValue{min-width:110px;text-align:right;font-size:23px;font-weight:700;color:#c1d7e5}.row.focus .rowValue{color:#7ddfff}.row.danger .rowTitle{color:#ff9bb1}
-.pageHelp{position:absolute;left:34px;right:34px;bottom:16px;border-top:1px solid #1f4666;padding-top:7px;color:#7598ae;font-size:16px}
-pre{height:500px;margin:0;background:#081722;border:1px solid #1b4562;padding:16px;font-family:monospace;font-size:18px;line-height:1.4;color:#d7e7f1;white-space:pre-wrap;overflow:hidden}
+.app{height:100%;padding:20px 32px 14px}
+.header{height:68px;border-bottom:1px solid #1f4666;display:flex;align-items:center}
+.logo{width:46px;height:46px;margin-right:13px}
+.brand{flex:1}.title{font-size:46px;font-weight:300;line-height:42px}.subtitle{font-size:20px;color:#93b7ce;margin-top:3px}.version{font-size:20px;color:#7598ae}
+.screen{display:none;height:calc(100% - 68px)}.screen.active{display:block}
+.home{padding-top:14px}
+.status{height:112px;background:#0d1c29;border:1px solid #1d4d70;padding:15px 19px;display:flex;align-items:center}
+.badge{width:68px;height:68px;border-radius:34px;border:2px solid #55758a;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;margin-right:18px;background:#102536}
+.badge.ok{background:#0f3b32;border-color:#32d49a}.badge.warn{background:#443414;border-color:#f2b84b}.badge.fail{background:#421c28;border-color:#f05d7f}.badge.idle{background:#102536;border-color:#55758a}
+.statusText{min-width:0;flex:1}.statusTitle{font-size:40px;font-weight:700}.statusSub{font-size:21px;color:#b5ccdb;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statusRight{text-align:right;margin-left:20px}.statusIp{font-size:34px;font-weight:700}.statusGateway{font-size:19px;color:#86a9bf;margin-top:5px}
+.metrics{height:106px;margin-top:11px;display:flex}
+.metric{height:106px;background:#0b1a27;border:1px solid #1b4562;padding:12px 14px;flex:1;margin-right:9px}.metric.last{margin-right:0}
+.metricLabel{font-size:18px;color:#80a9c1;text-transform:uppercase}.metricValue{font-size:35px;font-weight:700;margin-top:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.details{height:80px;margin-top:9px;display:flex}
+.detail{height:80px;background:#0b1a27;border:1px solid #1b4562;padding:9px 13px;flex:1;margin-right:9px}.detail.last{margin-right:0}
+.detail span{display:block;font-size:17px;color:#80a9c1;text-transform:uppercase}.detail b{display:block;font-size:25px;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actions{height:80px;margin-top:10px;display:flex}
+.action{height:80px;background:#0b1a27;border:2px solid #1b4562;flex:1;margin-right:8px;padding:0 10px;display:flex;align-items:center;justify-content:center;text-align:center}
+.action.last{margin-right:0}.action.focus{background:#102b40;border-color:#26c6ff;box-shadow:0 0 0 2px #26c6ff inset}.actionTitle{font-size:27px;font-weight:700}.action.focus .actionTitle{color:#e9f9ff}
+.help{position:absolute;left:32px;right:32px;bottom:14px;border-top:1px solid #1f4666;padding-top:7px;color:#7598ae;font-size:17px;display:flex;justify-content:space-between}
+.page{padding-top:13px}.pageTitle{font-size:40px;font-weight:300;margin-bottom:9px}
+.list{width:100%}.row{height:64px;background:#0b1a27;border:1px solid #173d57;margin-bottom:6px;padding:0 15px;display:flex;align-items:center}
+.row.focus{background:#102b40;border-color:#26c6ff;border-left-width:6px;padding-left:10px}.rowText{flex:1;min-width:0}.rowTitle{font-size:25px;font-weight:700}.rowHint{font-size:17px;color:#86a9bf;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rowValue{min-width:120px;text-align:right;font-size:24px;font-weight:700;color:#c1d7e5}.row.focus .rowValue{color:#7ddfff}.row.danger .rowTitle{color:#ff9bb1}
+.pageHelp{position:absolute;left:32px;right:32px;bottom:14px;border-top:1px solid #1f4666;padding-top:7px;color:#7598ae;font-size:17px}
+pre{height:505px;margin:0;background:#081722;border:1px solid #1b4562;padding:15px;font-family:monospace;font-size:18px;line-height:1.38;color:#d7e7f1;white-space:pre-wrap;overflow:hidden}

@@ -11,9 +11,9 @@
     <img class="logo" src="icon.png">
     <div class="brand">
       <div class="title">WiFi Watch</div>
-      <div class="subtitle">Wi-Fi health and diagnostics</div>
+      <div class="subtitle">Background watchdog and safe Wi-Fi recovery</div>
     </div>
-    <div class="version">v0.2.2</div>
+    <div class="version">v0.3.0</div>
   </div>
 
   <section id="home" class="screen active home">
@@ -35,29 +35,29 @@
         <div id="latency" class="metricValue">--</div>
       </div>
       <div class="metric">
-        <div class="metricLabel">RX packets</div>
-        <div id="rxPackets" class="metricValue">--</div>
+        <div class="metricLabel">Wi-Fi signal</div>
+        <div id="signal" class="metricValue">--</div>
       </div>
       <div class="metric">
         <div class="metricLabel">RX dropped</div>
         <div id="rxDropped" class="metricValue">--</div>
       </div>
       <div class="metric last">
-        <div class="metricLabel">Failures</div>
-        <div id="failures" class="metricValue">0</div>
+        <div class="metricLabel">Recoveries</div>
+        <div id="recoveries" class="metricValue">0</div>
       </div>
     </div>
 
     <div class="details">
-      <div class="detail"><span>Interface</span><b id="iface">wlan0</b></div>
-      <div class="detail"><span>Association</span><b id="assoc">--</b></div>
+      <div class="detail"><span>Interface</span><b id="iface">wlan0 · --</b></div>
       <div class="detail"><span>ConnMan</span><b id="connman">--</b></div>
-      <div class="detail last"><span>Monitor</span><b id="monitor">--</b></div>
+      <div class="detail"><span>Drop delta</span><b id="dropDelta">--</b></div>
+      <div class="detail last"><span>Auto Fix</span><b id="autoFix">OFF</b></div>
     </div>
 
     <div class="actions">
-      <div class="action focus"><div class="actionTitle">Refresh</div></div>
-      <div class="action"><div id="monitorAction" class="actionTitle">Stop monitor</div></div>
+      <div class="action focus"><div id="fixAction" class="actionTitle">Fix now</div></div>
+      <div class="action"><div id="autoFixAction" class="actionTitle">Auto Fix OFF</div></div>
       <div class="action"><div class="actionTitle">Diagnostics</div></div>
       <div class="action"><div class="actionTitle">Settings</div></div>
       <div class="action last"><div class="actionTitle">Exit</div></div>
@@ -67,13 +67,13 @@
   </section>
 
   <section id="diagnosticsScreen" class="screen page">
-    <div class="pageTitle">Diagnostics</div>
+    <div class="pageTitle">Diagnostics & History</div>
     <pre id="diag">Loading diagnostics...</pre>
     <div class="pageHelp">BACK: home &nbsp;&nbsp; OK: refresh diagnostics</div>
   </section>
 
   <section id="settingsScreen" class="screen page">
-    <div class="pageTitle">Settings</div>
+    <div class="pageTitle">Watchdog Settings</div>
     <div id="settingsList" class="list"></div>
     <div class="pageHelp">UP / DOWN: select &nbsp;&nbsp; LEFT / RIGHT: change &nbsp;&nbsp; OK: toggle/open &nbsp;&nbsp; BACK: home</div>
   </section>
@@ -81,7 +81,7 @@
   <section id="advancedScreen" class="screen page">
     <div class="pageTitle">Advanced Settings</div>
     <div id="advancedList" class="list"></div>
-    <div class="pageHelp">UP / DOWN: select &nbsp;&nbsp; LEFT / RIGHT: change &nbsp;&nbsp; OK: toggle/action &nbsp;&nbsp; BACK: settings</div>
+    <div class="pageHelp">UP / DOWN: select &nbsp;&nbsp; LEFT / RIGHT: change &nbsp;&nbsp; OK: action &nbsp;&nbsp; BACK: settings</div>
   </section>
 </div>
 <script src="js/app.js"></script>

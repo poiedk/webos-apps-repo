@@ -1,6 +1,6 @@
 {
   "id": "org.webosbrew.wifiwatch.service",
-  "description": "WiFi Watch background monitor",
+  "description": "WiFi Watch background watchdog and recovery service",
   "services": [
     {
       "name": "org.webosbrew.wifiwatch.service"
