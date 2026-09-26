@@ -1,25 +1,51 @@
 name: Release webOS app
+
 on:
   push:
-    tags: ['wifi-watch-v*','wled-fix-v*']
+    tags:
+      - 'wifi-watch-v*'
+      - 'wled-fix-v*'
+    branches:
+      - main
+    paths:
+      - '.release/wled-fix-1.1.4'
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   release:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: {node-version: '20'}
+        with:
+          node-version: '20'
+
       - run: npm install --global @webos-tools/cli
-      - name: Select app
+
+      - name: Select app and tag
         run: |
-          case "$GITHUB_REF_NAME" in
-            wifi-watch-v*) echo "APP=wifi-watch" >> "$GITHUB_ENV" ;;
-            wled-fix-v*) echo "APP=wled-fix" >> "$GITHUB_ENV" ;;
-            *) exit 1 ;;
-          esac
-      - name: Build
+          if [[ "$GITHUB_REF_NAME" == wifi-watch-v* ]]; then
+            APP="wifi-watch"
+            TAG="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF_NAME" == wled-fix-v* ]]; then
+            APP="wled-fix"
+            TAG="$GITHUB_REF_NAME"
+          elif [ -f ".release/wled-fix-1.1.4" ]; then
+            APP="wled-fix"
+            VERSION="$(node -p "require('./apps/wled-fix/app/appinfo.json').version")"
+            TAG="wled-fix-v$VERSION"
+          else
+            echo "No release target selected"
+            exit 1
+          fi
+          echo "APP=$APP" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Build exact release package
         run: |
           mkdir -p dist
           if [ "$APP" = "wifi-watch" ]; then
@@ -27,12 +53,17 @@ jobs:
           else
             ares-package --no-minify --outdir dist apps/wled-fix/app
           fi
-          echo "IPK=$(find dist -maxdepth 1 -name '*.ipk' -print -quit)" >> "$GITHUB_ENV"
-      - name: Generate manifest
-        run: node scripts/gen-manifest.js "apps/$APP" "$IPK" "$GITHUB_REF_NAME"
-      - name: Publish release
+          IPK="$(find dist -maxdepth 1 -name '*.ipk' -print -quit)"
+          test -n "$IPK"
+          echo "IPK=$IPK" >> "$GITHUB_ENV"
+          sha256sum "$IPK"
+
+      - name: Generate matching manifest
+        run: node scripts/gen-manifest.js "apps/$APP" "$IPK" "$TAG"
+
+      - name: Publish immutable GitHub Release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
-          gh release upload "$GITHUB_REF_NAME" "$IPK" dist/*.manifest.json --clobber
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+          gh release upload "$TAG" "$IPK" dist/*.manifest.json --clobber
