@@ -6,7 +6,7 @@
   "main": "index.html",
   "title": "WLED Fix",
   "icon": "icon.png",
-  "iconColor": "#26173a",
+  "iconColor": "#203072",
   "bgColor": "#100d18",
   "largeIcon": "largeIcon.png",
   "appDescription": "WLED discovery, Hyperion target repair and recovery",
