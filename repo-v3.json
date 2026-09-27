@@ -10,22 +10,22 @@
       "id": "org.webosbrew.lg-hue-sync",
       "title": "LG Hue Sync",
       "shortDescription": "Native ambient sync for WLED, Philips Hue and Nanoleaf.",
-      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/icon130.png",
+      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/bold-icon.svg",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/lg-hue-sync.html",
       "manifest": {
         "id": "org.webosbrew.lg-hue-sync",
-        "version": "0.4.3",
+        "version": "0.4.4",
         "type": "web",
         "title": "LG Hue Sync",
         "appDescription": "Native ambient lighting sync for WLED, Philips Hue and Nanoleaf",
-        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/icon130.png",
+        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/bold-icon.svg",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/lg-hue-sync",
         "rootRequired": true,
-        "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/org.webosbrew.lg-hue-sync_0.4.3_all.ipk",
+        "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/org.webosbrew.lg-hue-sync_0.4.4_all.ipk",
         "ipkHash": {
-          "sha256": "7593c71f2a314bde9e8a23d30ff1f917be8f5094a253f8ffefbd6ca8aa26b28e"
+          "sha256": "02008b0fa50caae80421a6314132c5423f845da985e023311eea5c199a30309b"
         },
-        "ipkSize": 3343832
+        "ipkSize": 3344222
       }
     },
     {
