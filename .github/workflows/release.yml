@@ -72,8 +72,8 @@ jobs:
               echo "::error::WiFi Watch service is missing from the IPK"
               exit 1
             }
-            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.wifiwatch/icon.png' || {
-              echo "::error::WiFi Watch PNG icon is missing from the IPK"
+            ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.wifiwatch/bold-icon.svg' || {
+              echo "::error::WiFi Watch Bold Badge icon is missing from the IPK"
               exit 1
             }
             ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/services/org.webosbrew.wifiwatch.service/autostart.sh' || {
@@ -93,6 +93,8 @@ jobs:
           ASSETS=("$IPK" dist/*.manifest.json "apps/$APP/app/icon.png" "apps/$APP/app/largeIcon.png")
           [ -f "apps/$APP/app/mediumIcon.png" ] && ASSETS+=("apps/$APP/app/mediumIcon.png")
           [ -f "apps/$APP/app/catalog-icon.png" ] && ASSETS+=("apps/$APP/app/catalog-icon.png")
+          [ -f "apps/$APP/app/bold-icon.svg" ] && ASSETS+=("apps/$APP/app/bold-icon.svg")
+          [ -f "apps/$APP/app/catalog-icon.svg" ] && ASSETS+=("apps/$APP/app/catalog-icon.svg")
           [ -f "apps/$APP/app/catalog-icon.svg" ] && ASSETS+=("apps/$APP/app/catalog-icon.svg")
           [ -f "apps/$APP/app/bold-icon.svg" ] && ASSETS+=("apps/$APP/app/bold-icon.svg")
           gh release upload "$TAG" "${ASSETS[@]}" --clobber
