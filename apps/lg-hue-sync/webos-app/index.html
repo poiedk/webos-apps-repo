@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Hue &amp; Nanoleaf Sync</title>
+  <title>LG Hue Sync</title>
   <style>
     * {
       box-sizing: border-box;
@@ -103,12 +103,12 @@
     </svg>
   </div>
   <div class="spinner" id="spinner"></div>
-  <h1>Hue &amp; Nanoleaf Sync</h1>
+  <h1>LG Hue Sync</h1>
   <p>Connecting to local ambient lighting service...</p>
   <div class="status-msg" id="status">Checking port 8088...</div>
 
   <div class="error-box" id="errorBox">
-    Service not responding on port 8088. Please verify <code>lg-hue-sync.service</code> is running.
+    Service not responding on port 8088. LG Hue Sync will try to start the native daemon through Homebrew Channel.
     <br>
     <button id="retryBtn" onclick="retryConnection()">Retry Now</button>
   </div>
@@ -117,6 +117,46 @@
     const TARGET = "http://127.0.0.1:8088/";
     let attempts = 0;
     const maxAttempts = 15;
+
+    function homebrewExec(command, callback) {
+      try {
+        if (typeof PalmServiceBridge === "undefined") {
+          callback(false);
+          return;
+        }
+        const bridge = new PalmServiceBridge();
+        bridge.onservicecallback = function(payload) {
+          try {
+            const result = JSON.parse(payload || "{}");
+            callback(!result.error);
+          } catch (_) {
+            callback(false);
+          }
+        };
+        bridge.call(
+          "luna://org.webosbrew.hbchannel.service/exec",
+          JSON.stringify({ command: command })
+        );
+      } catch (_) {
+        callback(false);
+      }
+    }
+
+    function bootstrapDaemon(callback) {
+      const command = [
+        'APP_ID=org.webosbrew.lg-hue-sync',
+        'APP_DIR=""',
+        'for base in /media/developer/apps/usr/palm/applications /media/cryptofs/apps/usr/palm/applications /media/system/apps/usr/palm/applications; do',
+        '  if [ -d "$base/$APP_ID" ]; then APP_DIR="$base/$APP_ID"; break; fi',
+        'done',
+        'test -n "$APP_DIR" || exit 2',
+        'mkdir -p /var/lib/webosbrew/init.d /var/home/root/lg-hue-sync',
+        'ln -sf "$APP_DIR/startup.sh" /var/lib/webosbrew/init.d/50-lg-hue-sync',
+        'chmod +x "$APP_DIR/startup.sh" "$APP_DIR/bin/lg-hue-sync"',
+        '"$APP_DIR/startup.sh"'
+      ].join('; ');
+      homebrewExec(command, callback);
+    }
 
     async function checkService() {
       attempts++;
@@ -147,7 +187,9 @@
       document.getElementById("spinner").style.display = "block";
       document.getElementById("status").style.display = "block";
       document.getElementById("errorBox").style.display = "none";
-      checkService();
+      bootstrapDaemon(function() {
+      setTimeout(checkService, 500);
+    });
     }
 
     // Handle webOS back button
