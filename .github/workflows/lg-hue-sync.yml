@@ -75,13 +75,13 @@ jobs:
       - name: Build Homebrew IPK with native daemon
         env:
           LG_HUE_SYNC_BINARY: target/webos3-armv7/lg-hue-sync
-        run: python3 scripts/package_ipk.py
-      - name: Stage legacy and Homebrew artifacts
+          LG_HUE_SYNC_OUTPUT_DIR: legacy-artifact
         run: |
           mkdir -p legacy-artifact
+          python3 scripts/package_ipk.py
+      - name: Stage legacy and Homebrew artifacts
+        run: |
           cp target/webos3-armv7/lg-hue-sync legacy-artifact/lg-hue-sync-webos3-armv7
-          cp target/org.webosbrew.lg-hue-sync_*.ipk legacy-artifact/
-          cp target/org.webosbrew.lg-hue-sync.manifest.json legacy-artifact/
           sha256sum legacy-artifact/lg-hue-sync-webos3-armv7 > legacy-artifact/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
