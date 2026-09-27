@@ -1,0 +1,101 @@
+name: LG Hue Sync CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['lg-hue-sync-v*']
+    paths:
+      - 'apps/lg-hue-sync/**'
+      - '.github/workflows/lg-hue-sync.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/lg-hue-sync/**'
+      - '.github/workflows/lg-hue-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/lg-hue-sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/lg-hue-sync -> target
+      - run: python3 scripts/check_release.py
+      - run: cargo fmt --all -- --check
+      - run: cargo test
+      - run: cargo clippy --bin lg-hue-sync -- -D warnings
+      - name: Validate embedded dashboard JavaScript
+        run: perl -0777 -ne 'print $1 if /<script>(.*)<\/script>/s' src/web/ui.html | node --check -
+
+  webos-target:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/lg-hue-sync
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build
+      - name: Verify ARMv7 Linux artifact
+        run: file target/armv7-unknown-linux-gnueabi/release/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
+      - name: Stage release binary
+        if: startsWith(github.ref, 'refs/tags/lg-hue-sync-v')
+        run: |
+          mkdir -p release
+          cp target/armv7-unknown-linux-gnueabi/release/lg-hue-sync release/lg-hue-sync-armv7
+          sha256sum release/lg-hue-sync-armv7 > release/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/lg-hue-sync-v')
+        with:
+          name: lg-hue-sync-webos-armv7-release
+          path: apps/lg-hue-sync/release/
+
+  webos3-target:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/lg-hue-sync
+    steps:
+      - uses: actions/checkout@v4
+      - run: make build-webos3
+      - name: Verify legacy ARMv7 Linux artifact
+        run: file target/webos3-armv7/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
+      - name: Report legacy GLIBC requirements
+        run: readelf --version-info target/webos3-armv7/lg-hue-sync | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sort -Vu | uniq || true
+      - name: Stage legacy artifact
+        run: |
+          mkdir -p legacy-artifact
+          cp target/webos3-armv7/lg-hue-sync legacy-artifact/lg-hue-sync-webos3-armv7
+          sha256sum legacy-artifact/lg-hue-sync-webos3-armv7 > legacy-artifact/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lg-hue-sync-webos3-${{ github.sha }}
+          path: apps/lg-hue-sync/legacy-artifact/
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/lg-hue-sync-v')
+    needs: [test, webos-target, webos3-target]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lg-hue-sync-webos-armv7-release
+          path: release
+      - name: Publish verified daemon release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes
