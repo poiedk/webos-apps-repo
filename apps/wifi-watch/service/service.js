@@ -236,7 +236,7 @@ function canRecover(source){
   pruneRecoveries();
   if(cfg.iface!=='wlan0')return {ok:false,reason:'Automatic recovery is only available for wlan0'};
   if(recoveryInProgress)return {ok:false,reason:'Recovery already running'};
-  if(recoveryTimes.length>=cfg.maxRecoveries)return {ok:false,reason:'Recovery limit reached'};
+  if(source==='auto'&&recoveryTimes.length>=cfg.maxRecoveries)return {ok:false,reason:'Automatic recovery limit reached'};
   if(source==='auto'&&sessionLastRecovery){
     var age=(Date.now()-new Date(sessionLastRecovery).getTime())/1000;
     if(age<cfg.recoveryCooldownSec)return {ok:false,reason:'Recovery cooldown active'};
@@ -245,13 +245,17 @@ function canRecover(source){
 }
 
 function recoveryCommand(level){
-  var quick='SVC="$(connmanctl services 2>/dev/null | sed -n "s/.* \\(wifi_[^ ]*\\)$/\\1/p" | head -n 1)"; '+
-    'if [ -n "$SVC" ]; then connmanctl connect "$SVC" >/dev/null 2>&1 || true; fi; sleep 5';
+  var findSvc='SVC="$(connmanctl services 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; '+
+    'if [ -z "$SVC" ]; then connmanctl scan wifi >/dev/null 2>&1 || true; sleep 2; '+
+      'SVC="$(connmanctl services 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; fi; ';
+  var reconnect=findSvc+
+    'if [ -n "$SVC" ]; then connmanctl disconnect "$SVC" >/dev/null 2>&1 || true; sleep 2; '+
+      'connmanctl connect "$SVC" >/dev/null 2>&1 || true; fi; sleep 7';
   if(level==='full'){
     return 'connmanctl disable wifi >/dev/null 2>&1 || true; sleep 2; '+
-      'connmanctl enable wifi >/dev/null 2>&1 || true; sleep 4; '+quick;
+      'connmanctl enable wifi >/dev/null 2>&1 || true; sleep 5; '+reconnect;
   }
-  return quick;
+  return reconnect;
 }
 
 function runRecovery(level,source,reason,cb){
@@ -266,7 +270,7 @@ function runRecovery(level,source,reason,cb){
   level=level==='full'?'full':'quick';
   started=new Date();
   recoveryInProgress=true;
-  recoveryTimes.push(started.getTime());
+  if(source==='auto')recoveryTimes.push(started.getTime());
   sessionLastRecovery=started.toISOString();
   sessionLastRecoveryResult='running';
   addHistory('RECOVERY_START',source+' '+level+' '+(reason||''));
