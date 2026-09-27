@@ -112,10 +112,10 @@ jobs:
 
           catalog_svg = root / "apps" / app / "app" / "catalog-icon.svg"
           catalog_png = root / "apps" / app / "app" / "catalog-icon.png"
-          if catalog_svg.exists():
-              icon_rel = f"apps/{app}/app/catalog-icon.svg"
-          elif catalog_png.exists():
+          if catalog_png.exists():
               icon_rel = f"apps/{app}/app/catalog-icon.png"
+          elif catalog_svg.exists():
+              icon_rel = f"apps/{app}/app/catalog-icon.svg"
           else:
               icon_rel = f"apps/{app}/app/{info['icon']}"
 
