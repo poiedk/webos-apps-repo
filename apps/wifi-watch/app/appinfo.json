@@ -5,10 +5,10 @@
   "type": "web",
   "main": "index.html",
   "title": "WiFi Watch",
-  "icon": "bold-icon.svg",
+  "icon": "icon.png",
   "iconColor": "#0B1220",
   "bgColor": "#07131f",
   "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery",
   "disableBackHistoryAPI": true,
-  "largeIcon": "bold-icon.svg"
+  "largeIcon": "largeIcon.png"
 }

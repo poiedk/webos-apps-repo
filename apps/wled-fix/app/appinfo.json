@@ -5,10 +5,10 @@
   "type": "web",
   "main": "index.html",
   "title": "WLED Fix",
-  "icon": "bold-icon.svg",
+  "icon": "icon.png",
   "iconColor": "#0B1220",
   "bgColor": "#100d18",
-  "largeIcon": "bold-icon.svg",
+  "largeIcon": "largeIcon.png",
   "appDescription": "WLED discovery, Hyperion target repair and recovery",
   "disableBackHistoryAPI": true
 }
