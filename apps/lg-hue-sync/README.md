@@ -1,7 +1,7 @@
 # lg-hue-sync
 
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
-[![CI](https://github.com/adeze/lg-hue-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/adeze/lg-hue-sync/actions/workflows/ci.yml)
+[![LG Hue Sync CI](https://github.com/poiedk/webos-apps-repo/actions/workflows/lg-hue-sync.yml/badge.svg)](https://github.com/poiedk/webos-apps-repo/actions/workflows/lg-hue-sync.yml)
 [![webOS](https://img.shields.io/badge/webOS-rooted%205%2F6-blue.svg)](https://www.webosbrew.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -107,7 +107,7 @@ Useful implementation references:
 
 ## Contributing
 
-This is currently a single-maintainer project. Changes go directly to `main`; no pull request is required unless the maintainer explicitly asks for one. Run the validation commands before pushing.
+This project lives in the `poiedk/webos-apps-repo` monorepo under `apps/lg-hue-sync`. Changes are validated by the dedicated LG Hue Sync workflow. Run the validation commands before pushing.
 
 ## License
 
