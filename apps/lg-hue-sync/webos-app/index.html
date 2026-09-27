@@ -119,24 +119,24 @@
     function homebrewExec(command, callback) {
       try {
         if (typeof PalmServiceBridge === "undefined") {
-          callback(false);
+          callback(false, { errorText: "PalmServiceBridge unavailable" });
           return;
         }
         const bridge = new PalmServiceBridge();
         bridge.onservicecallback = function(payload) {
           try {
             const result = JSON.parse(payload || "{}");
-            callback(!result.error);
+            callback(result.returnValue !== false, result);
           } catch (_) {
-            callback(false);
+            callback(false, {});
           }
         };
         bridge.call(
           "luna://org.webosbrew.hbchannel.service/exec",
           JSON.stringify({ command: command })
         );
-      } catch (_) {
-        callback(false);
+      } catch (err) {
+        callback(false, { errorText: String(err) });
       }
     }
 
@@ -180,14 +180,28 @@
       }
     }
 
+    function showStartFailure(result) {
+      var detail = (result && (result.errorText || result.stderrString || result.stdoutString)) || "Unknown startup error";
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("status").style.display = "none";
+      var box = document.getElementById("errorBox");
+      box.style.display = "block";
+      box.childNodes[0].nodeValue = "Service failed to start: " + detail + " ";
+      document.getElementById("retryBtn").focus();
+    }
+
     function retryConnection() {
       attempts = 0;
       document.getElementById("spinner").style.display = "block";
       document.getElementById("status").style.display = "block";
       document.getElementById("errorBox").style.display = "none";
-      bootstrapDaemon(function() {
-      setTimeout(checkService, 500);
-    });
+      bootstrapDaemon(function(started, result) {
+        if (!started) {
+          showStartFailure(result);
+          return;
+        }
+        setTimeout(checkService, 500);
+      });
     }
 
     // Handle webOS back button
@@ -198,10 +212,12 @@
     });
 
     document.getElementById("status").textContent = "Starting local service...";
-    bootstrapDaemon(function(started) {
-      document.getElementById("status").textContent = started
-        ? "Service start requested. Checking port 8088..."
-        : "Could not request service start. Checking port 8088...";
+    bootstrapDaemon(function(started, result) {
+      if (!started) {
+        showStartFailure(result);
+        return;
+      }
+      document.getElementById("status").textContent = "Service start requested. Checking port 8088...";
       setTimeout(checkService, 700);
     });
   </script>

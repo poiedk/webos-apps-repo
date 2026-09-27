@@ -186,6 +186,6 @@ jobs:
             echo "Catalog already up to date"
             exit 0
           fi
-          git commit -m "catalog: publish LG Hue Sync 0.4.6"
+          git commit -m "catalog: publish LG Hue Sync 0.4.7"
           git pull --rebase origin main
           git push origin HEAD:main

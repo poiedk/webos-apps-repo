@@ -10,10 +10,15 @@ LOGFILE="$STATE_DIR/daemon.log"
 
 mkdir -p "$STATE_DIR"
 
-if [ ! -f "$CONFIG" ] && [ -f "$APP_DIR/config.example.json" ]; then
-  cp "$APP_DIR/config.example.json" "$CONFIG"
-  chmod 600 "$CONFIG" 2>/dev/null || true
+# Versions <=0.4.6 copied config.example.json into the persistent state directory.
+# That example contained fake Hue credentials, which made the daemon try to connect
+# before the web server could bind port 8088. Remove only that known placeholder.
+if [ -f "$CONFIG" ] && grep -q '"example-user-token"' "$CONFIG" 2>/dev/null; then
+  mv "$CONFIG" "$STATE_DIR/config.placeholder-0.4.6.bak"
 fi
+
+# If there is no real config yet, leave it absent. The daemon intentionally
+# starts in dashboard setup mode and serves port 8088 without configured outputs.
 
 if [ -f "$PIDFILE" ]; then
   PID="$(cat "$PIDFILE" 2>/dev/null || true)"

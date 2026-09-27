@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-09-27
+
+### Fixed
+- Fixed first-run startup on legacy webOS: the packaged example configuration no longer contains active fake Hue credentials.
+- Automatically quarantines only the known placeholder config written by versions up to 0.4.6, allowing the daemon to start in dashboard setup mode on port 8088.
+- Launcher now checks Homebrew Channel exec via returnValue and displays the actual startup error instead of reporting a false successful start.
+
+
 ## [0.4.6] - 2026-09-27
 
 ### Fixed
