@@ -313,7 +313,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     if(busy)return;
     document.getElementById("resultText").textContent="Closing WLED Fix...";
     document.getElementById("resultSub").textContent="Returning to webOS.";
-    var cmd="(luna-send -n 1 luna://com.webos.service.applicationmanager/closeByAppId '{\"id\":\"org.webosbrew.wledfix\"}' >/dev/null 2>&1; sleep 1; luna-send -n 1 luna://com.webos.applicationManager/dev/close '{\"id\":\"org.webosbrew.wledfix\"}' >/dev/null 2>&1) &";
+    var cmd="(luna-send -n 1 -f luna://com.webos.applicationManager/dev/closeByAppId '{\"id\":\"org.webosbrew.wledfix\"}' >/dev/null 2>&1 || luna-send -n 1 -f luna://com.webos.service.applicationManager/closeByAppId '{\"id\":\"org.webosbrew.wledfix\"}' >/dev/null 2>&1) &";
     execCommand(cmd,function(){});
     setTimeout(function(){try{window.close();}catch(e){}},1200);
   }
