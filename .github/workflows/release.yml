@@ -66,6 +66,10 @@ jobs:
           test -n "$IPK"
           echo "IPK=$IPK" >> "$GITHUB_ENV"
           sha256sum "$IPK"
+          ar p "$IPK" data.tar.gz | tar -tzf - | grep -q "usr/palm/applications/org.webosbrew.$([ "$APP" = "wifi-watch" ] && echo wifiwatch || echo wledfix)/bold-icon.svg" || {
+            echo "::error::Bold Badge icon is missing from the IPK"
+            exit 1
+          }
           if [ "$APP" = "wifi-watch" ]; then
             echo "Verifying bundled WiFi Watch service and icons..."
             ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/services/org.webosbrew.wifiwatch.service/service.js' || {
@@ -82,19 +86,98 @@ jobs:
             }
           fi
 
-      - name: Generate matching manifest
-        run: node scripts/gen-manifest.js "apps/$APP" "$IPK" "$TAG"
-
-      - name: Publish immutable GitHub Release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Publish package, manifest and catalog
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
-          ASSETS=("$IPK" dist/*.manifest.json "apps/$APP/app/icon.png" "apps/$APP/app/largeIcon.png")
-          [ -f "apps/$APP/app/mediumIcon.png" ] && ASSETS+=("apps/$APP/app/mediumIcon.png")
-          [ -f "apps/$APP/app/catalog-icon.png" ] && ASSETS+=("apps/$APP/app/catalog-icon.png")
-          [ -f "apps/$APP/app/bold-icon.svg" ] && ASSETS+=("apps/$APP/app/bold-icon.svg")
-          [ -f "apps/$APP/app/catalog-icon.svg" ] && ASSETS+=("apps/$APP/app/catalog-icon.svg")
-          [ -f "apps/$APP/app/catalog-icon.svg" ] && ASSETS+=("apps/$APP/app/catalog-icon.svg")
-          [ -f "apps/$APP/app/bold-icon.svg" ] && ASSETS+=("apps/$APP/app/bold-icon.svg")
-          gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+
+          root = Path(".")
+          app = os.environ["APP"]
+          ipk = Path(os.environ["IPK"])
+          info = json.loads((root / "apps" / app / "app" / "appinfo.json").read_text())
+
+          packages_dir = root / "packages"
+          manifests_dir = root / "manifests"
+          packages_dir.mkdir(exist_ok=True)
+          manifests_dir.mkdir(exist_ok=True)
+
+          dst = packages_dir / ipk.name
+          shutil.copy2(ipk, dst)
+
+          catalog_svg = root / "apps" / app / "app" / "catalog-icon.svg"
+          catalog_png = root / "apps" / app / "app" / "catalog-icon.png"
+          if catalog_svg.exists():
+              icon_rel = f"apps/{app}/app/catalog-icon.svg"
+          elif catalog_png.exists():
+              icon_rel = f"apps/{app}/app/catalog-icon.png"
+          else:
+              icon_rel = f"apps/{app}/app/{info['icon']}"
+
+          source_sha = os.environ["GITHUB_SHA"]
+          icon_uri = f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/{source_sha}/{icon_rel}"
+          manifest = {
+              "id": info["id"],
+              "version": info["version"],
+              "type": info.get("type", "web"),
+              "title": info["title"],
+              "appDescription": info.get("appDescription", info["title"]),
+              "iconUri": icon_uri,
+              "sourceUrl": f"https://github.com/poiedk/webos-apps-repo/tree/main/apps/{app}",
+              "rootRequired": True,
+              "ipkUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/{ipk.name}",
+              "ipkHash": {"sha256": hashlib.sha256(dst.read_bytes()).hexdigest()},
+              "ipkSize": dst.stat().st_size,
+          }
+          manifest_path = manifests_dir / f"{info['id']}.json"
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+          descriptions = {
+              "org.webosbrew.wifiwatch": (
+                  "Background Wi-Fi watchdog, diagnostics and safe recovery.",
+                  "descriptions/wifi-watch.html",
+              ),
+              "org.webosbrew.wledfix": (
+                  "WLED discovery, Hyperion target repair and recovery.",
+                  "descriptions/wled-fix.html",
+              ),
+          }
+          short_desc, desc_path = descriptions[info["id"]]
+          entry = {
+              "id": info["id"],
+              "title": info["title"],
+              "shortDescription": short_desc,
+              "iconUri": icon_uri,
+              "fullDescriptionUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/{desc_path}",
+              "manifest": manifest,
+          }
+
+          for name in ("repo.json", "repo-v3.json"):
+              path = root / name
+              data = json.loads(path.read_text())
+              packages = [p for p in data.get("packages", []) if p.get("id") != info["id"]]
+              packages.append(entry)
+              packages.sort(key=lambda p: p.get("title", "").lower())
+              data["packages"] = packages
+              data["paging"] = {
+                  "page": 1,
+                  "count": len(packages),
+                  "maxPage": 1,
+                  "itemsTotal": len(packages),
+              }
+              path.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+
+      - name: Commit catalog update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/ manifests/ repo.json repo-v3.json
+          if git diff --cached --quiet; then
+            echo "Catalog already up to date"
+            exit 0
+          fi
+          VERSION="$(node -p "require('./apps/' + process.env.APP + '/app/appinfo.json').version")"
+          git commit -m "catalog: publish $APP $VERSION"
+          git pull --rebase origin main
+          git push origin HEAD:main
