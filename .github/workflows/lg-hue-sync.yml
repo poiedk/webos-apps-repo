@@ -72,10 +72,16 @@ jobs:
         run: file target/webos3-armv7/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
       - name: Report legacy GLIBC requirements
         run: readelf --version-info target/webos3-armv7/lg-hue-sync | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sort -Vu | uniq || true
-      - name: Stage legacy artifact
+      - name: Build Homebrew IPK with native daemon
+        env:
+          LG_HUE_SYNC_BINARY: target/webos3-armv7/lg-hue-sync
+        run: python3 scripts/package_ipk.py
+      - name: Stage legacy and Homebrew artifacts
         run: |
           mkdir -p legacy-artifact
           cp target/webos3-armv7/lg-hue-sync legacy-artifact/lg-hue-sync-webos3-armv7
+          cp target/org.webosbrew.lg-hue-sync_*.ipk legacy-artifact/
+          cp target/org.webosbrew.lg-hue-sync.manifest.json legacy-artifact/
           sha256sum legacy-artifact/lg-hue-sync-webos3-armv7 > legacy-artifact/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
