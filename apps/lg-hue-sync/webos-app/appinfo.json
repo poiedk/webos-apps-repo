@@ -1,13 +1,13 @@
 {
   "id": "org.webosbrew.lg-hue-sync",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
   "title": "LG Hue Sync",
-  "icon": "icon80.png",
-  "largeIcon": "icon130.png",
-  "iconColor": "#6366f1",
+  "icon": "bold-icon.svg",
+  "largeIcon": "bold-icon.svg",
+  "iconColor": "#0B1220",
   "resolution": "1920x1080",
   "uiRevision": "2",
   "appDescription": "Native ambient lighting sync for WLED, Philips Hue and Nanoleaf"
