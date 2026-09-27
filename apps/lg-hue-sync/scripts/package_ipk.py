@@ -66,7 +66,7 @@ def build_ipk() -> None:
         "type": APP_INFO.get("type", "web"),
         "title": APP_INFO["title"],
         "appDescription": APP_INFO["appDescription"],
-        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/icon130.png",
+        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/bold-icon.svg",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/lg-hue-sync",
         "rootRequired": True,
         "ipkUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/{expected.name}",
