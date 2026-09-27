@@ -13,8 +13,9 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT_DIR / "webos-app"
 APP_INFO = json.loads((APP_DIR / "appinfo.json").read_text(encoding="utf-8"))
 VERSION = APP_INFO["version"]
-OUTPUT_IPK = ROOT_DIR / "target" / f"org.webosbrew.lg-hue-sync_{VERSION}_all.ipk"
-OUTPUT_MANIFEST = ROOT_DIR / "target" / "org.webosbrew.lg-hue-sync.manifest.json"
+OUTPUT_DIR = Path(os.environ.get("LG_HUE_SYNC_OUTPUT_DIR", ROOT_DIR / "target"))
+OUTPUT_IPK = OUTPUT_DIR / f"org.webosbrew.lg-hue-sync_{VERSION}_all.ipk"
+OUTPUT_MANIFEST = OUTPUT_DIR / "org.webosbrew.lg-hue-sync.manifest.json"
 BINARY_PATH = os.environ.get("LG_HUE_SYNC_BINARY")
 
 def make_tarfile_bytes(files_dict):
@@ -33,7 +34,7 @@ def make_tarfile_bytes(files_dict):
     return buf.getvalue()
 
 def build_ipk():
-    OUTPUT_IPK.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     # 1. debian-binary
     debian_binary = b"2.0\n"
