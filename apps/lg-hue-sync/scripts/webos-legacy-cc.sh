@@ -1,5 +1,5 @@
-#!/bin/sh
-set -eu
+#!/bin/bash
+set -euo pipefail
 
 SDK_ROOT="${WEBOS_SDK_ROOT:-/opt/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot}"
 SYSROOT="$SDK_ROOT/arm-webos-linux-gnueabi/sysroot"
@@ -14,4 +14,15 @@ if [ ! -d "$SYSROOT" ]; then
     exit 1
 fi
 
-exec "$COMPILER" --sysroot="$SYSROOT" "$@"
+filtered=()
+for arg in "$@"; do
+    case "$arg" in
+        -fuse-ld=lld|-pie|-Wl,-z,relro,-z,now)
+            ;;
+        *)
+            filtered+=("$arg")
+            ;;
+    esac
+done
+
+exec "$COMPILER" --sysroot="$SYSROOT" -no-pie "${filtered[@]}"

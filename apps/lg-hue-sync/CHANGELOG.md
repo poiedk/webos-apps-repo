@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-09-27
+
+### Fixed
+- Legacy webOS build now links as a classic non-PIE ET_EXEC executable with the SDK GNU linker instead of the modern lld PIE layout.
+- This avoids the glibc 2.19 ARM loader crash observed during relocation of the executable before `main()`/`--help` is reached.
+- CI now rejects legacy packages that accidentally regress to PIE.
+
+
 ## [0.4.9] - 2026-09-27
 
 ### Fixed

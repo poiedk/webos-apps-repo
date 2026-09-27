@@ -32,4 +32,4 @@ RUN apt-get update -qq \
 
 WORKDIR /app
 
-CMD ["bash", "-c", "/app/scripts/webos-legacy-cc.sh -c -fPIC /app/compat/getauxval.c -o /tmp/getauxval.o && RUSTFLAGS='-C link-arg=/tmp/getauxval.o' cargo build --locked --target arm-unknown-linux-gnueabi --release && mkdir -p /app/target/webos3-arm && cp /target-cache-webos3/arm-unknown-linux-gnueabi/release/lg-hue-sync /app/target/webos3-arm/lg-hue-sync"]
+CMD ["bash", "-c", "/app/scripts/webos-legacy-cc.sh -c -fPIC /app/compat/getauxval.c -o /tmp/getauxval.o && RUSTFLAGS='-C relocation-model=static -C link-arg=/tmp/getauxval.o' cargo build --locked --target arm-unknown-linux-gnueabi --release && mkdir -p /app/target/webos3-arm && cp /target-cache-webos3/arm-unknown-linux-gnueabi/release/lg-hue-sync /app/target/webos3-arm/lg-hue-sync"]
