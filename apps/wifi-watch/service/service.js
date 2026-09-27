@@ -27,8 +27,9 @@ var cfg=copy(DEFAULTS);
 var configLoaded=false,configLoading=false,configWaiters=[];
 var timer=null,collecting=false,recoveryInProgress=false;
 var serviceStartedAt=Date.now(),autoFixGraceMs=45000;
-var failures=0,lastFailure=null,previousRxDropped=null;
-var recoveryTimes=[],recoveryCount=0,lastRecovery=null,lastRecoveryResult=null;
+var failures=0,lastFailure=null,sessionRxLastRaw=null,sessionRxDropped=0;
+var recoveryTimes=[],sessionRecoveryCount=0,sessionLastRecovery=null,sessionLastRecoveryResult=null;
+var lifetimeRecoveryCount=0,lifetimeLastRecovery=null;
 var last={
   returnValue:true,state:'Starting',cause:'Starting watchdog',ssid:'--',ip:null,gateway:null,
   latencyMs:null,signalDbm:null,rxPackets:null,rxDropped:null,rxDropDelta:null,
@@ -120,12 +121,8 @@ function ensureConfigLoaded(cb){
     }else{
       cfg=copy(DEFAULTS);
     }
-    recoveryCount=Number(d.RECOVERY_COUNT||0)||0;
-    if(d.LAST_RECOVERY){
-      lastRecovery=d.LAST_RECOVERY.split('|')[0]||null;
-      lastRecoveryResult=d.LAST_RECOVERY.indexOf('|RECOVERY_OK|')>=0?'success':
-        (d.LAST_RECOVERY.indexOf('|RECOVERY_FAIL|')>=0?'failed':'blocked');
-    }
+    lifetimeRecoveryCount=Number(d.RECOVERY_COUNT||0)||0;
+    lifetimeLastRecovery=d.LAST_RECOVERY||null;
     configLoaded=true;configLoading=false;
     updateBootHook(function(){});
     flushConfigWaiters();
@@ -216,6 +213,19 @@ function captureFailure(cause){
   });
 }
 
+function resetSessionStats(reason){
+  serviceStartedAt=Date.now();
+  failures=0;
+  lastFailure=null;
+  sessionRxLastRaw=null;
+  sessionRxDropped=0;
+  recoveryTimes=[];
+  sessionRecoveryCount=0;
+  sessionLastRecovery=null;
+  sessionLastRecoveryResult=null;
+  if(reason)addHistory('SESSION_START',reason);
+}
+
 function pruneRecoveries(){
   var now=Date.now(),cut=now-600000,next=[],i;
   for(i=0;i<recoveryTimes.length;i++)if(recoveryTimes[i]>=cut)next.push(recoveryTimes[i]);
@@ -227,8 +237,8 @@ function canRecover(source){
   if(cfg.iface!=='wlan0')return {ok:false,reason:'Automatic recovery is only available for wlan0'};
   if(recoveryInProgress)return {ok:false,reason:'Recovery already running'};
   if(recoveryTimes.length>=cfg.maxRecoveries)return {ok:false,reason:'Recovery limit reached'};
-  if(source==='auto'&&lastRecovery){
-    var age=(Date.now()-new Date(lastRecovery).getTime())/1000;
+  if(source==='auto'&&sessionLastRecovery){
+    var age=(Date.now()-new Date(sessionLastRecovery).getTime())/1000;
     if(age<cfg.recoveryCooldownSec)return {ok:false,reason:'Recovery cooldown active'};
   }
   return {ok:true};
@@ -248,7 +258,8 @@ function runRecovery(level,source,reason,cb){
   var gate=canRecover(source),started;
   if(!gate.ok){
     addHistory('RECOVERY_BLOCKED',gate.reason);
-    lastRecoveryResult='blocked';
+    sessionLastRecovery=new Date().toISOString();
+    sessionLastRecoveryResult='blocked';
     if(cb)cb(false,gate.reason);
     return;
   }
@@ -256,13 +267,13 @@ function runRecovery(level,source,reason,cb){
   started=new Date();
   recoveryInProgress=true;
   recoveryTimes.push(started.getTime());
-  lastRecovery=started.toISOString();
-  lastRecoveryResult='running';
+  sessionLastRecovery=started.toISOString();
+  sessionLastRecoveryResult='running';
   addHistory('RECOVERY_START',source+' '+level+' '+(reason||''));
   rootExec(recoveryCommand(level),function(err){
     if(err){
       recoveryInProgress=false;
-      lastRecoveryResult='failed';
+      sessionLastRecoveryResult='failed';
       addHistory('RECOVERY_FAIL',String(err));
       if(cb)cb(false,String(err));
       return;
@@ -270,8 +281,9 @@ function runRecovery(level,source,reason,cb){
     collect(function(probeErr,r){
       if(!probeErr&&r.state==='Connected'){
         recoveryInProgress=false;
-        recoveryCount++;
-        lastRecoveryResult='success';
+        sessionRecoveryCount++;
+        lifetimeRecoveryCount++;
+        sessionLastRecoveryResult='success';
         addHistory('RECOVERY_OK',source+' '+level+' restored in '+Math.max(1,Math.round((Date.now()-started.getTime())/1000))+'s');
         if(cb)cb(true,'Connection restored');
         return;
@@ -282,7 +294,7 @@ function runRecovery(level,source,reason,cb){
         return;
       }
       recoveryInProgress=false;
-      lastRecoveryResult='failed';
+      sessionLastRecoveryResult='failed';
       addHistory('RECOVERY_FAIL',(r&&r.cause)||'Connection still unavailable');
       if(cb)cb(false,(r&&r.cause)||'Connection still unavailable');
     },true);
@@ -301,7 +313,7 @@ function maybeAutoRecover(r){
 }
 
 function finishCollect(err,data,suppressAuto){
-  var now=new Date().toISOString(),ok,delta,cause,state,rxDropped;
+  var now=new Date().toISOString(),ok,delta,cause,state,rawRxDropped;
   if(err){
     last.returnValue=true;
     last.state='Unavailable';
@@ -333,9 +345,19 @@ function finishCollect(err,data,suppressAuto){
     failures=0;
   }
 
-  rxDropped=data.RX_DROPPED?Number(data.RX_DROPPED):null;
-  delta=(rxDropped!==null&&previousRxDropped!==null)?Math.max(0,rxDropped-previousRxDropped):null;
-  if(rxDropped!==null)previousRxDropped=rxDropped;
+  rawRxDropped=data.RX_DROPPED?Number(data.RX_DROPPED):null;
+  delta=null;
+  if(rawRxDropped!==null){
+    if(sessionRxLastRaw===null){
+      delta=0;
+    }else if(rawRxDropped>=sessionRxLastRaw){
+      delta=rawRxDropped-sessionRxLastRaw;
+      sessionRxDropped+=delta;
+    }else{
+      delta=0;
+    }
+    sessionRxLastRaw=rawRxDropped;
+  }
 
   cause=causeFor(data,ok);
   if(ok)state='Connected';
@@ -356,7 +378,8 @@ function finishCollect(err,data,suppressAuto){
     signalDbm:data.SIGNAL_DBM?Number(data.SIGNAL_DBM):null,
     signalQuality:data.SIGNAL_QUALITY?Number(data.SIGNAL_QUALITY):null,
     rxPackets:data.RX_PACKETS?Number(data.RX_PACKETS):null,
-    rxDropped:rxDropped,
+    rxDropped:sessionRxDropped,
+    rxDroppedRaw:rawRxDropped,
     rxDropDelta:delta,
     failureCount:failures,
     lastFailure:lastFailure,
@@ -371,9 +394,12 @@ function finishCollect(err,data,suppressAuto){
     lastCheck:now,
     probeError:null,
     recoveryInProgress:recoveryInProgress,
-    recoveryCount:recoveryCount,
-    lastRecovery:lastRecovery,
-    lastRecoveryResult:lastRecoveryResult
+    recoveryCount:sessionRecoveryCount,
+    lastRecovery:sessionLastRecovery,
+    lastRecoveryResult:sessionLastRecoveryResult,
+    sessionStartedAt:new Date(serviceStartedAt).toISOString(),
+    lifetimeRecoveryCount:lifetimeRecoveryCount,
+    lifetimeLastRecovery:lifetimeLastRecovery
   };
 
   collecting=false;
@@ -441,8 +467,8 @@ function diagnosticsText(cb){
 }
 
 service.register('boot',function(m){
-  serviceStartedAt=Date.now();
   ensureConfigLoaded(function(){
+    resetSessionStats('boot');
     updateBootHook(function(){});
     if(cfg.backgroundWatchdog||cfg.autoFix)start();
     else collect();
@@ -491,7 +517,7 @@ service.register('setSettings',function(m){
 
 service.register('clearHistory',function(m){
   rootExec('rm -f '+HISTORY+' '+LAST_FAILURE+'; true',function(){
-    recoveryCount=0;lastRecovery=null;lastRecoveryResult=null;
+    lifetimeRecoveryCount=0;lifetimeLastRecovery=null;
     m.respond({returnValue:true});
   });
 });
