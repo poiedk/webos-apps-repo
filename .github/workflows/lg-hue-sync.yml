@@ -182,4 +182,5 @@ jobs:
             exit 0
           fi
           git commit -m "catalog: publish LG Hue Sync 0.4.2"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
