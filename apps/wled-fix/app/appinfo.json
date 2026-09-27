@@ -1,15 +1,14 @@
 {
   "id": "org.webosbrew.wledfix",
-  "version": "1.1.13",
+  "version": "1.1.14",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
   "title": "WLED Fix",
-  "icon": "icon.png",
-  "iconColor": "#1f2d6b",
+  "icon": "bold-icon.svg",
+  "iconColor": "#0B1220",
   "bgColor": "#100d18",
-  "largeIcon": "largeIcon.png",
+  "largeIcon": "bold-icon.svg",
   "appDescription": "WLED discovery, Hyperion target repair and recovery",
-  "disableBackHistoryAPI": true,
-  "mediumIcon": "mediumIcon.png"
+  "disableBackHistoryAPI": true
 }
