@@ -10,44 +10,44 @@
       "id": "org.webosbrew.wifiwatch",
       "title": "WiFi Watch",
       "shortDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery.",
-      "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.5/catalog-icon.png",
+      "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.6/catalog-icon.png",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wifi-watch.html",
       "manifest": {
         "id": "org.webosbrew.wifiwatch",
-        "version": "0.3.5",
+        "version": "0.3.6",
         "type": "web",
         "title": "WiFi Watch",
         "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery.",
-        "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.5/catalog-icon.png",
+        "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.6/catalog-icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.5/org.webosbrew.wifiwatch_0.3.5_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wifi-watch-v0.3.6/org.webosbrew.wifiwatch_0.3.6_all.ipk",
         "ipkHash": {
-          "sha256": "09cd59322dc1905bef5b997059b42ba601e91654bc15cda373f1734b542f690a"
+          "sha256": "debd002f65fbc3fbd82685537d339810d0e8e86a4e44f2fb48ee512078db4360"
         },
-        "ipkSize": 17988
+        "ipkSize": 28228
       }
     },
     {
       "id": "org.webosbrew.wledfix",
       "title": "WLED Fix",
       "shortDescription": "WLED discovery, Hyperion target repair and recovery.",
-      "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
+      "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.13/catalog-icon.png",
       "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/wled-fix.html",
       "manifest": {
         "id": "org.webosbrew.wledfix",
-        "version": "1.1.12",
+        "version": "1.1.13",
         "type": "web",
         "title": "WLED Fix",
         "appDescription": "WLED discovery, Hyperion target repair and recovery.",
-        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wled-fix/app/icon.png",
+        "iconUri": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.13/catalog-icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wled-fix",
         "rootRequired": true,
-        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.12/org.webosbrew.wledfix_1.1.12_all.ipk",
+        "ipkUrl": "https://github.com/poiedk/webos-apps-repo/releases/download/wled-fix-v1.1.13/org.webosbrew.wledfix_1.1.13_all.ipk",
         "ipkHash": {
-          "sha256": "ae2f7b65d2ada5f2a6b442dc931aede13a0fcc05505e4ab0738a8f617941beda"
+          "sha256": "0d5a21ecd8ee4166bcf5334e07f120b9bbd28825192bcdf13f66dd65799cded8"
         },
-        "ipkSize": 8736
+        "ipkSize": 27214
       }
     }
   ]
