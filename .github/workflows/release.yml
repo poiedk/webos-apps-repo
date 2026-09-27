@@ -93,4 +93,6 @@ jobs:
           ASSETS=("$IPK" dist/*.manifest.json "apps/$APP/app/icon.png" "apps/$APP/app/largeIcon.png")
           [ -f "apps/$APP/app/mediumIcon.png" ] && ASSETS+=("apps/$APP/app/mediumIcon.png")
           [ -f "apps/$APP/app/catalog-icon.png" ] && ASSETS+=("apps/$APP/app/catalog-icon.png")
+          [ -f "apps/$APP/app/catalog-icon.svg" ] && ASSETS+=("apps/$APP/app/catalog-icon.svg")
+          [ -f "apps/$APP/app/bold-icon.svg" ] && ASSETS+=("apps/$APP/app/bold-icon.svg")
           gh release upload "$TAG" "${ASSETS[@]}" --clobber
