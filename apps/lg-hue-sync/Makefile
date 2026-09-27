@@ -19,7 +19,7 @@ LEGACY_CROSS_IMAGE ?= lg-hue-sync-webos3:rust-$(RUST_VERSION)
 CARGO_CACHE    ?= lg-hue-sync-cargo
 TARGET_CACHE   ?= lg-hue-sync-target
 LEGACY_TARGET_CACHE ?= lg-hue-sync-webos3-target
-LEGACY_BINARY  := target/webos3-armv7/lg-hue-sync
+LEGACY_BINARY  := target/webos3-arm/lg-hue-sync
 
 SSH_OPTS       := -p $(SSH_PORT) -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5
 SCP_OPTS       := -P $(SSH_PORT) -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5
@@ -43,7 +43,7 @@ help:
 	@printf "  $(GREEN)make cross-image$(RESET)   Build the cached Debian Buster/Rust cross-toolchain image\n"
 	@printf "  $(GREEN)make toolchain-update$(RESET) Refresh stable Rust, rebuild the Docker toolchain, check and build\n"
 	@printf "  $(GREEN)make build$(RESET)         Cross-compile release binary for LG webOS 5/6 (ARMv7, Debian Buster)\n"
-	@printf "  $(GREEN)make build-webos3$(RESET)  Cross-compile legacy binary with the webOS Buildroot SDK\n"
+	@printf "  $(GREEN)make build-webos3$(RESET)  Cross-compile legacy Arm EABI binary with the webOS Buildroot SDK\n"
 	@printf "  $(GREEN)make build-local$(RESET)   Build binary for host OS (macOS) via local cargo\n"
 	@printf "  $(GREEN)make clean$(RESET)         Clean host build artifacts\n"
 	@printf "  $(GREEN)make cross-clean$(RESET)   Remove cross-build image and Docker caches\n\n"
@@ -112,7 +112,7 @@ build: cross-image
 	  $(CROSS_IMAGE)
 	@printf "$(GREEN)[+] Build complete: $(BINARY) ($$(du -h $(BINARY) | cut -f1))$(RESET)\n"
 
-## cross-compile with the webOS Buildroot SDK for older firmware (for example webOS 3.x)
+## cross-compile with the webOS Buildroot SDK for older firmware (for example webOS 3.x) using the Armv6-compatible GNU EABI Rust target
 build-webos3: legacy-cross-image
 	@printf "$(CYAN)[*] Cross-compiling legacy webOS binary with the Buildroot SDK...$(RESET)\n"
 	docker run --rm \

@@ -72,21 +72,21 @@ jobs:
           node-version: '20'
       - run: npm install --global @webos-tools/cli
       - run: make build-webos3
-      - name: Verify legacy ARMv7 Linux artifact
-        run: file target/webos3-armv7/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
+      - name: Verify legacy ARM GNU EABI artifact
+        run: file target/webos3-arm/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
       - name: Report legacy GLIBC requirements
-        run: readelf --version-info target/webos3-armv7/lg-hue-sync | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sort -Vu | uniq || true
+        run: readelf --version-info target/webos3-arm/lg-hue-sync | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sort -Vu | uniq || true
       - name: Build Homebrew IPK with native daemon
         env:
-          LG_HUE_SYNC_BINARY: target/webos3-armv7/lg-hue-sync
+          LG_HUE_SYNC_BINARY: target/webos3-arm/lg-hue-sync
           LG_HUE_SYNC_OUTPUT_DIR: legacy-artifact
         run: |
           mkdir -p legacy-artifact
           python3 scripts/package_ipk.py
       - name: Stage legacy and Homebrew artifacts
         run: |
-          cp target/webos3-armv7/lg-hue-sync legacy-artifact/lg-hue-sync-webos3-armv7
-          sha256sum legacy-artifact/lg-hue-sync-webos3-armv7 > legacy-artifact/SHA256SUMS
+          cp target/webos3-arm/lg-hue-sync legacy-artifact/lg-hue-sync-webos3-arm-eabi
+          sha256sum legacy-artifact/lg-hue-sync-webos3-arm-eabi > legacy-artifact/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: lg-hue-sync-webos3-${{ github.sha }}
@@ -186,6 +186,6 @@ jobs:
             echo "Catalog already up to date"
             exit 0
           fi
-          git commit -m "catalog: publish LG Hue Sync 0.4.7"
+          git commit -m "catalog: publish LG Hue Sync 0.4.8"
           git pull --rebase origin main
           git push origin HEAD:main

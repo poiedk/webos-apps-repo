@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-09-27
+
+### Fixed
+- Rebuilt the legacy webOS daemon with Rust `arm-unknown-linux-gnueabi` instead of the newer `armv7-unknown-linux-gnueabi` runtime target.
+- The legacy target is compatible with older Linux/glibc baselines and still runs on ARMv7 TVs, avoiding the pre-main segmentation fault observed on webOS 3.x.
+- Updated CI artifact verification and packaging paths for the legacy Arm GNU EABI build.
+
+
 ## [0.4.7] - 2026-09-27
 
 ### Fixed

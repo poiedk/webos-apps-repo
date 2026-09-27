@@ -9,9 +9,9 @@ ENV RUSTUP_HOME=/opt/rust/rustup \
     CARGO_TARGET_DIR=/target-cache-webos3 \
     WEBOS_SDK_ROOT=/opt/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot \
     LG_WEBOS_LEGACY=1 \
-    CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABI_LINKER=/app/scripts/webos-legacy-cc.sh \
-    CC_armv7_unknown_linux_gnueabi=/app/scripts/webos-legacy-cc.sh \
-    AR_armv7_unknown_linux_gnueabi=/opt/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot/bin/arm-webos-linux-gnueabi-ar
+    CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABI_LINKER=/app/scripts/webos-legacy-cc.sh \
+    CC_arm_unknown_linux_gnueabi=/app/scripts/webos-legacy-cc.sh \
+    AR_arm_unknown_linux_gnueabi=/opt/webos-sdk/arm-webos-linux-gnueabi_sdk-buildroot/bin/arm-webos-linux-gnueabi-ar
 
 RUN apt-get update -qq \
     && apt-get install -y --no-install-recommends \
@@ -22,7 +22,7 @@ RUN apt-get update -qq \
     && curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
       | CARGO_HOME=/opt/rust/cargo sh -s -- -y --no-modify-path \
         --default-toolchain "${RUST_VERSION}" --profile minimal \
-        --target armv7-unknown-linux-gnueabi \
+        --target arm-unknown-linux-gnueabi \
     && curl -fL \
       "https://github.com/openlgtv/buildroot-nc4/releases/download/${WEBOS_SDK_TAG}/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz" \
       -o /tmp/webos-sdk.tar.gz \
@@ -32,4 +32,4 @@ RUN apt-get update -qq \
 
 WORKDIR /app
 
-CMD ["bash", "-c", "cargo build --locked --target armv7-unknown-linux-gnueabi --release && mkdir -p /app/target/webos3-armv7 && cp /target-cache-webos3/armv7-unknown-linux-gnueabi/release/lg-hue-sync /app/target/webos3-armv7/lg-hue-sync"]
+CMD ["bash", "-c", "cargo build --locked --target arm-unknown-linux-gnueabi --release && mkdir -p /app/target/webos3-arm && cp /target-cache-webos3/arm-unknown-linux-gnueabi/release/lg-hue-sync /app/target/webos3-arm/lg-hue-sync"]
