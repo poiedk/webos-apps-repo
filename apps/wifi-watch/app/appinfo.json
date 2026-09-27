@@ -1,15 +1,14 @@
 {
   "id": "org.webosbrew.wifiwatch",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
   "title": "WiFi Watch",
-  "icon": "icon.png",
-  "iconColor": "#102b40",
+  "icon": "bold-icon.svg",
+  "iconColor": "#0B1220",
   "bgColor": "#07131f",
   "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery",
   "disableBackHistoryAPI": true,
-  "largeIcon": "largeIcon.png",
-  "mediumIcon": "mediumIcon.png"
+  "largeIcon": "bold-icon.svg"
 }
