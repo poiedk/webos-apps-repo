@@ -1,6 +1,6 @@
 {
   "id": "org.webosbrew.lg-hue-sync",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",

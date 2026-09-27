@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-09-27
+
+### Fixed
+- Repackaged the launcher with standard webOS PNG icon assets (`icon.png` 80x80 and `largeIcon.png` 130x130).
+- Ensures the installed TV launcher receives the new Bold Badge icon instead of only the Homebrew catalog artwork.
+
+
 ## [0.4.5] - 2026-09-27
 
 ### Fixed
