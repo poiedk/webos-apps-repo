@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-09-27
+
+### Fixed
+- Added a legacy `getauxval` compatibility shim backed by `/proc/self/auxv` for the older webOS SDK sysroot.
+- This resolves the legacy Arm GNU EABI linker failure from Rust std/ring while preserving runtime CPU feature discovery on the TV.
+
+
 ## [0.4.8] - 2026-09-27
 
 ### Fixed
