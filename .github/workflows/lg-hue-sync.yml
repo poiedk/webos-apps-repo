@@ -105,3 +105,81 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${GITHUB_REF_NAME}" release/* --verify-tag --generate-notes
+
+
+  catalog:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, webos-target, webos3-target]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: lg-hue-sync-webos3-${{ github.sha }}
+          path: lg-hue-sync-artifact
+      - name: Verify Homebrew package contents
+        run: |
+          IPK="$(find lg-hue-sync-artifact -maxdepth 1 -name 'org.webosbrew.lg-hue-sync_*.ipk' -print -quit)"
+          test -n "$IPK"
+          ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.lg-hue-sync/bin/lg-hue-sync'
+          ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/applications/org.webosbrew.lg-hue-sync/startup.sh'
+      - name: Publish package and update repository catalog
+        run: |
+          python3 - <<'PY'
+          import json, shutil
+          from pathlib import Path
+
+          root = Path(".")
+          artifact = root / "lg-hue-sync-artifact"
+          manifest_path = artifact / "org.webosbrew.lg-hue-sync.manifest.json"
+          manifest = json.loads(manifest_path.read_text())
+
+          ipks = list(artifact.glob("org.webosbrew.lg-hue-sync_*.ipk"))
+          if len(ipks) != 1:
+              raise SystemExit(f"expected one IPK, found {len(ipks)}")
+
+          packages_dir = root / "packages"
+          manifests_dir = root / "manifests"
+          packages_dir.mkdir(exist_ok=True)
+          manifests_dir.mkdir(exist_ok=True)
+
+          shutil.copy2(ipks[0], packages_dir / ipks[0].name)
+          shutil.copy2(manifest_path, manifests_dir / "org.webosbrew.lg-hue-sync.json")
+
+          entry = {
+              "id": manifest["id"],
+              "title": manifest["title"],
+              "shortDescription": "Native ambient sync for WLED, Philips Hue and Nanoleaf.",
+              "iconUri": manifest["iconUri"],
+              "fullDescriptionUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/descriptions/lg-hue-sync.html",
+              "manifest": manifest,
+          }
+
+          for name in ("repo.json", "repo-v3.json"):
+              path = root / name
+              data = json.loads(path.read_text())
+              packages = [p for p in data.get("packages", []) if p.get("id") != manifest["id"]]
+              packages.append(entry)
+              packages.sort(key=lambda p: p.get("title", "").lower())
+              data["packages"] = packages
+              data["paging"] = {
+                  "page": 1,
+                  "count": len(packages),
+                  "maxPage": 1,
+                  "itemsTotal": len(packages),
+              }
+              path.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+      - name: Commit catalog update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/ manifests/ repo.json repo-v3.json
+          if git diff --cached --quiet; then
+            echo "Catalog already up to date"
+            exit 0
+          fi
+          git commit -m "catalog: publish LG Hue Sync 0.4.2"
+          git push
