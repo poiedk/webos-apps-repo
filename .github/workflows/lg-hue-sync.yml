@@ -67,6 +67,10 @@ jobs:
         working-directory: apps/lg-hue-sync
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --global @webos-tools/cli
       - run: make build-webos3
       - name: Verify legacy ARMv7 Linux artifact
         run: file target/webos3-armv7/lg-hue-sync | grep -q 'ELF 32-bit.*ARM'
@@ -123,7 +127,8 @@ jobs:
         run: |
           IPK="$(find lg-hue-sync-artifact -maxdepth 1 -name 'org.webosbrew.lg-hue-sync_*.ipk' -print -quit)"
           test -n "$IPK"
-          ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.lg-hue-sync/bin/lg-hue-sync'
+          ar p "$IPK" data.tar.gz | tar -tzf - | grep -q 'usr/palm/applications/org.webosbrew.lg-hue-sync/appinfo.json'
+          ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/applications/org.webosbrew.lg-hue-sync/bin/lg-hue-sync'
           ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/applications/org.webosbrew.lg-hue-sync/startup.sh'
       - name: Publish package and update repository catalog
         run: |
@@ -181,6 +186,6 @@ jobs:
             echo "Catalog already up to date"
             exit 0
           fi
-          git commit -m "catalog: publish LG Hue Sync 0.4.2"
+          git commit -m "catalog: publish LG Hue Sync 0.4.3"
           git pull --rebase origin main
           git push origin HEAD:main

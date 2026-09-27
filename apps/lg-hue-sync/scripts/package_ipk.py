@@ -1,130 +1,83 @@
 #!/usr/bin/env python3
-"""
-Package the webOS application directory into an installable .ipk (ar archive).
-"""
+"""Build a Homebrew-installable LG Hue Sync IPK with the official webOS CLI."""
+
+from __future__ import annotations
+
 import hashlib
-import io
 import json
 import os
-import tarfile
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT_DIR / "webos-app"
 APP_INFO = json.loads((APP_DIR / "appinfo.json").read_text(encoding="utf-8"))
 VERSION = APP_INFO["version"]
-OUTPUT_DIR = Path(os.environ.get("LG_HUE_SYNC_OUTPUT_DIR", ROOT_DIR / "target"))
-OUTPUT_IPK = OUTPUT_DIR / f"org.webosbrew.lg-hue-sync_{VERSION}_all.ipk"
-OUTPUT_MANIFEST = OUTPUT_DIR / "org.webosbrew.lg-hue-sync.manifest.json"
+OUTPUT_DIR = Path(os.environ.get("LG_HUE_SYNC_OUTPUT_DIR", ROOT_DIR / "target")).resolve()
 BINARY_PATH = os.environ.get("LG_HUE_SYNC_BINARY")
 
-def make_tarfile_bytes(files_dict):
-    """Create a tar.gz in memory from a dict of {arcname: (bytes, mode)}"""
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for arcname, (data, mode) in files_dict.items():
-            info = tarfile.TarInfo(name=arcname)
-            info.size = len(data)
-            info.mode = mode
-            info.uid = 0
-            info.gid = 0
-            info.uname = "root"
-            info.gname = "root"
-            tar.addfile(info, io.BytesIO(data))
-    return buf.getvalue()
 
-def build_ipk():
+def build_ipk() -> None:
+    if not BINARY_PATH:
+        raise SystemExit("LG_HUE_SYNC_BINARY is required")
+
+    binary = Path(BINARY_PATH).resolve()
+    if not binary.is_file():
+        raise FileNotFoundError(f"LG_HUE_SYNC_BINARY not found: {binary}")
+    if shutil.which("ares-package") is None:
+        raise SystemExit("ares-package not found; install @webos-tools/cli")
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # 1. debian-binary
-    debian_binary = b"2.0\n"
-    
-    # 2. control.tar.gz
-    control_content = (
-        "Package: org.webosbrew.lg-hue-sync\n"
-        f"Version: {VERSION}\n"
-        "Section: misc\n"
-        "Priority: optional\n"
-        "Architecture: all\n"
-        "Maintainer: poiedk\n"
-        "Description: Native ambient lighting sync for WLED, Philips Hue and Nanoleaf on rooted LG webOS TVs\n"
-    ).encode("utf-8")
-    
-    control_tar = make_tarfile_bytes({
-        "./control": (control_content, 0o644)
-    })
-    
-    # 3. data.tar.gz
-    data_files = {}
-    base_target = "usr/palm/applications/org.webosbrew.lg-hue-sync"
-    for item in APP_DIR.rglob("*"):
-        if item.is_file():
-            rel = item.relative_to(APP_DIR).as_posix()
-            arcname = f"./{base_target}/{rel}"
-            data_files[arcname] = (item.read_bytes(), 0o755 if item.suffix == ".sh" else 0o644)
-            
-    if BINARY_PATH:
-        binary = Path(BINARY_PATH)
-        if not binary.is_file():
-            raise FileNotFoundError(f"LG_HUE_SYNC_BINARY not found: {binary}")
-        data_files[f"./{base_target}/bin/lg-hue-sync"] = (binary.read_bytes(), 0o755)
 
-    config_example = ROOT_DIR / "config.example.json"
-    if config_example.is_file():
-        data_files[f"./{base_target}/config.example.json"] = (config_example.read_bytes(), 0o644)
+    with tempfile.TemporaryDirectory(prefix="lg-hue-sync-package-") as tmp:
+        stage = Path(tmp) / "org.webosbrew.lg-hue-sync"
+        shutil.copytree(APP_DIR, stage)
 
-    data_tar = make_tarfile_bytes(data_files)
-    
-    # Assemble AR archive
-    # Debian ar format:
-    # 8-byte magic: !<arch>\n
-    # Each entry: 60-byte header + data + optional padding \n if odd length
-    # Header:
-    # name (16 chars, slash-terminated: "debian-binary/  ")
-    # mtime (12 chars: "0           ")
-    # uid (6 chars: "0     ")
-    # gid (6 chars: "0     ")
-    # mode (8 chars: "100644  ")
-    # size (10 chars: left-justified)
-    # 2-byte magic: `\n
-    
-    def ar_entry(name, content):
-        header = io.BytesIO()
-        header.write(f"{name:<16}".encode("ascii"))
-        header.write(f"{'0':<12}".encode("ascii"))
-        header.write(f"{'0':<6}".encode("ascii"))
-        header.write(f"{'0':<6}".encode("ascii"))
-        header.write(f"{'100644':<8}".encode("ascii"))
-        header.write(f"{len(content):<10}".encode("ascii"))
-        header.write(b"`\n")
-        entry = header.getvalue() + content
-        if len(content) % 2 != 0:
-            entry += b"\n"
-        return entry
+        bin_dir = stage / "bin"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        staged_binary = bin_dir / "lg-hue-sync"
+        shutil.copy2(binary, staged_binary)
+        staged_binary.chmod(0o755)
 
-    with open(OUTPUT_IPK, "wb") as f:
-        f.write(b"!<arch>\n")
-        f.write(ar_entry("debian-binary", debian_binary))
-        f.write(ar_entry("control.tar.gz", control_tar))
-        f.write(ar_entry("data.tar.gz", data_tar))
+        startup = stage / "startup.sh"
+        startup.chmod(0o755)
+
+        config_example = ROOT_DIR / "config.example.json"
+        if config_example.is_file():
+            shutil.copy2(config_example, stage / "config.example.json")
+
+        subprocess.run(
+            ["ares-package", "--no-minify", "--outdir", str(OUTPUT_DIR), str(stage)],
+            check=True,
+        )
+
+    expected = OUTPUT_DIR / f"org.webosbrew.lg-hue-sync_{VERSION}_all.ipk"
+    if not expected.is_file():
+        candidates = list(OUTPUT_DIR.glob("org.webosbrew.lg-hue-sync_*_all.ipk"))
+        if len(candidates) != 1:
+            raise SystemExit(f"expected one LG Hue Sync IPK, found {len(candidates)}")
+        candidates[0].replace(expected)
 
     manifest = {
         "id": APP_INFO["id"],
         "version": VERSION,
-        "type": APP_INFO["type"],
+        "type": APP_INFO.get("type", "web"),
         "title": APP_INFO["title"],
         "appDescription": APP_INFO["appDescription"],
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/icon130.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/lg-hue-sync",
         "rootRequired": True,
-        "ipkUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/{OUTPUT_IPK.name}",
-        "ipkHash": {"sha256": hashlib.sha256(OUTPUT_IPK.read_bytes()).hexdigest()},
-        "ipkSize": OUTPUT_IPK.stat().st_size,
+        "ipkUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/{expected.name}",
+        "ipkHash": {"sha256": hashlib.sha256(expected.read_bytes()).hexdigest()},
+        "ipkSize": expected.stat().st_size,
     }
-    OUTPUT_MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path = OUTPUT_DIR / "org.webosbrew.lg-hue-sync.manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"Successfully created {expected} ({expected.stat().st_size} bytes)")
+    print(f"Successfully created {manifest_path}")
 
-    print(f"Successfully created {OUTPUT_IPK} ({os.path.getsize(OUTPUT_IPK)} bytes)")
-    print(f"Successfully created {OUTPUT_MANIFEST}")
 
 if __name__ == "__main__":
     build_ipk()

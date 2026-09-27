@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-27
+
+### Fixed
+- Replaced the hand-built Homebrew IPK with the official `ares-package` flow for reliable installation on legacy webOS.
+- Removed the unnecessary launcher-wide `requiredPermissions: ["all"]` declaration.
+- Preserve executable permissions for the bundled native daemon and startup hook and verify both inside the final IPK.
+
+
 ### Changed
 - Added a tracked Codex project environment with worktree setup and actions for dependencies, validation, webOS builds, TV transfer, and scoped Docker cache cleanup.
 - Switched the Docker cross-toolchain to Rust stable and added an explicit refresh action that rebuilds its image and validates the ARM binary.
