@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-09-27
+
+### Fixed
+- Switched the launcher and Homebrew catalog artwork to PNG for reliable rendering on legacy webOS.
+- Start the bundled native daemon automatically when the launcher opens instead of only after a manual retry.
+- Fixed the launcher bootstrap shell command separator bug that produced an invalid `do;` sequence and prevented the port 8088 service from starting.
+
+
 ## [0.4.4] - 2026-09-27
 
 ### Changed

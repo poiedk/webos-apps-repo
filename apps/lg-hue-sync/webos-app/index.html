@@ -98,7 +98,7 @@
 </head>
 <body>
   <div class="icon-container">
-    <img src="bold-icon.svg" alt="LG Hue Sync">
+    <img src="bold-icon.png" alt="LG Hue Sync">
   </div>
   <div class="spinner" id="spinner"></div>
   <h1>LG Hue Sync</h1>
@@ -152,7 +152,7 @@
         'ln -sf "$APP_DIR/startup.sh" /var/lib/webosbrew/init.d/50-lg-hue-sync',
         'chmod +x "$APP_DIR/startup.sh" "$APP_DIR/bin/lg-hue-sync"',
         '"$APP_DIR/startup.sh"'
-      ].join('; ');
+      ].join('\n');
       homebrewExec(command, callback);
     }
 
@@ -197,7 +197,13 @@
       }
     });
 
-    checkService();
+    document.getElementById("status").textContent = "Starting local service...";
+    bootstrapDaemon(function(started) {
+      document.getElementById("status").textContent = started
+        ? "Service start requested. Checking port 8088..."
+        : "Could not request service start. Checking port 8088...";
+      setTimeout(checkService, 700);
+    });
   </script>
 </body>
 </html>
