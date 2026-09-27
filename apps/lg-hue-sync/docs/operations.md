@@ -1,0 +1,158 @@
+# Build and TV operations
+
+Use `<tv-ip>` explicitly. Never add a private address or populated configuration to the repository.
+
+## Local gate
+
+```bash
+make check
+```
+
+## Codex project setup
+
+Codex loads [`.codex/environments/environment.toml`](../.codex/environments/environment.toml) from this repository. It sets up new worktrees with `make setup` and adds actions to update dependencies, refresh Rust stable, validate/build, transfer to the TV, and clean Docker builds. Leave automatic worktree cleanup empty so reusable Docker caches survive.
+
+The transfer action reads `TV_IP=<tv-ip>` from `~/.config/lg-hue-sync/device.env` on the local host, or from its terminal environment. Add `SSH_PORT=<port>` there only if it differs from 22. This file stays outside Git and is not copied into a worktree.
+
+Docker Desktop must be running for toolchain update, build, transfer, and cache-clean actions. Ordinary builds reuse the most recently built stable Rust image; **Update Rust toolchain** refreshes stable Rust on the host, rebuilds the image without Docker's layer cache, then runs host checks and the ARM build. Transfer preserves the TV's paired `config.json`, verifies the uploaded binary checksum, and restarts the daemon.
+
+## Target build
+
+```bash
+make build
+file target/armv7-unknown-linux-gnueabi/release/lg-hue-sync
+llvm-readelf -h target/armv7-unknown-linux-gnueabi/release/lg-hue-sync
+llvm-readelf --version-info target/armv7-unknown-linux-gnueabi/release/lg-hue-sync
+```
+
+Required result: 32-bit ARM Linux ELF with no required symbol newer than `GLIBC_2.28`. On Linux, GNU `readelf` is equivalent.
+
+`make build` uses `docker/Dockerfile.cross`, which bakes the archived Debian Buster packages, the stable Rust toolchain, ARMv7 target, and linker into `lg-hue-sync-cross`. The cached image remains at its installed Rust release until `make toolchain-update` refreshes it. Cargo registry and target artifacts live in named Docker volumes, so subsequent builds are incremental. `make cross-clean` removes this project's cross-toolchain images and both caches when disk space matters.
+
+Codex and developers use this same target rather than maintaining separate toolchains. GitHub Actions also runs it on every push to `main`; the ordinary CI job separately checks formatting, host tests, Clippy, and embedded dashboard JavaScript.
+
+## Dependencies
+
+```bash
+make deps-check   # dry-run compatible Cargo.lock updates and show duplicate versions
+make deps-update  # update Cargo.lock within Cargo.toml version constraints
+```
+
+Dependency updates are deliberate direct-to-`main` changes: inspect `Cargo.lock`, run the local gate and `make build`, then commit. Automated dependency pull requests are intentionally not enabled for this single-maintainer workflow.
+
+### webOS Brew native toolchain
+
+[`webosbrew/native-toolchain`](https://github.com/webosbrew/native-toolchain) is the community reference SDK. On macOS, download the matching Darwin archive, extract it to a path without spaces, and run its `relocate-sdk.sh`. Its CMake toolchain file is under `share/buildroot/toolchainfile.cmake`.
+
+An older SDK revision was evaluated previously and failed to satisfy `getauxval` for the Rust
+dependency graph. The current OpenLGTV `2026.08-webos` SDK changes that boundary by shipping a static
+`glibc-polyfills` library that includes a `getauxval` backport. Rust's `-nodefaultlibs`
+link mode means this project links that library explicitly.
+The normal Debian Buster container remains canonical for webOS 5/6, while `make build-webos3`
+uses the newer community SDK as an isolated compatibility path for older firmware. [`hyperhdr-webos-loader`](https://github.com/webosbrew/hyperhdr-webos-loader) remains the reference for native service, frontend, autostart, and IPK layout; it uses the same Buildroot SDK, but does not solve this Rust libc boundary.
+
+## First install
+
+Root SSH must already work; rooting is a separate owner action.
+
+```bash
+./scripts/deploy.sh <tv-ip>
+```
+
+The script installs the binary, Luna permissions, service unit, boot hook, and launcher package. It does not upload `config.json` unless `--with-config` is supplied explicitly.
+
+### Ares transfer tools
+
+The official Rust rewrite is [`webosbrew/ares-cli-rs`](https://github.com/webosbrew/ares-cli-rs). This workstation keeps Node commands unchanged and exposes the verified Rust v0.7.0 binaries as `ares-rs-*` aliases. Upstream shares the OSE registry, but LG's Node TV CLI uses a separate `~/.webos/tv` registry here, so `lgc1` is registered in both.
+
+```bash
+ares-rs-setup-device --add tv --info host=<tv-ip> --info username=root --info port=22 --info keyPath=<ssh-private-key>
+ares-rs-package webos-app --outdir target
+ares-rs-install --device tv target/org.webosbrew.lg-hue-sync_<version>_all.ipk
+ares-rs-push --device tv <local-file> <remote-path>
+ares-rs-shell --device tv '<command>'
+```
+
+Node equivalents (`ares-package`, `ares-install`, `ares-push`, `ares-shell`) remain supported. Ares handles the launcher app and ordinary transfer. Root-owned daemon/service provisioning still uses the repository's SSH workflow until the IPK owns and verifies the complete install/uninstall lifecycle.
+
+## Safe binary update
+
+```bash
+make build
+make deploy-bin TV_IP=<tv-ip>
+```
+
+The update retains `config.json`, backs up the previous binary, uploads through a temporary filename, and restarts the service.
+
+## Verification
+
+```bash
+shasum -a 256 target/armv7-unknown-linux-gnueabi/release/lg-hue-sync
+ssh root@<tv-ip> 'sha256sum /var/home/root/lg-hue-sync/lg-hue-sync'
+ssh root@<tv-ip> 'systemctl is-active lg-hue-sync'
+curl --fail --silent http://<tv-ip>:8088/api/status
+```
+
+Match digests, require `active`, and inspect dashboard JSON. Physical capture-to-light behavior needs a visible check; a healthy process alone is insufficient.
+
+## Rollback
+
+```bash
+ssh root@<tv-ip> 'systemctl stop lg-hue-sync && cp /var/home/root/lg-hue-sync/lg-hue-sync.previous /var/home/root/lg-hue-sync/lg-hue-sync && chmod 755 /var/home/root/lg-hue-sync/lg-hue-sync && systemctl start lg-hue-sync'
+```
+
+## Uninstall
+
+```bash
+./scripts/uninstall.sh <tv-ip>
+```
+
+Default behavior preserves `config.json` in a timestamped backup directory. Use `--purge-config` only when the owner explicitly wants credentials removed.
+
+## Diagnostics
+
+- Hue layout changed: dashboard **Refresh selected area layout**.
+- Gradient count unexpected: inspect `entertainment_configuration.channels[].members`; physical segment count differs from stream-channel count.
+- Nanoleaf order wrong: run **4D Tracer**, then adjust corner, direction, and offset under **Calibration**.
+- Standby leaves lights owned: enable **Follow TV power** and inspect transition logs.
+
+
+## Legacy webOS 3.x build
+
+The normal `make build` target remains the canonical webOS 5/6 build and is intentionally unchanged.
+For older TVs, use the separate community-SDK build:
+
+```bash
+make build-webos3
+file target/webos3-armv7/lg-hue-sync
+readelf --version-info target/webos3-armv7/lg-hue-sync
+```
+
+This path pins the OpenLGTV/webOS Buildroot SDK release `2026.08-webos`. The SDK ships a static
+`glibc-polyfills` compatibility library with a `getauxval` backport. Rust uses
+`-nodefaultlibs` for this target, so `build.rs` requests that SDK library explicitly instead of
+relying on the patched GCC driver's default library injection. The project adds only the remaining
+narrow syscall wrappers currently needed by modern Rust dependencies (`gettid` and `sendmmsg`).
+These legacy additions are enabled only when `LG_WEBOS_LEGACY=1`; they are not linked into host
+builds or the normal Debian Buster target.
+
+Do not deploy the legacy binary blindly. First run the read-only TV probe:
+
+```bash
+make probe-tv TV_IP=<tv-ip>
+```
+
+Review the reported libc version, `libdile_vt` presence/symbols, architecture, `/dev/mem`
+access, and service support. A successful cross-build proves link compatibility with the SDK,
+not that a particular firmware's capture quirks are correct. Physical capture and WLED output
+still require supervised on-device verification.
+
+
+### webOS 3.4 capture quirk
+
+The DILE backend detects webOS 3.4 from `/etc/starfish-release` or `/etc/os-release`.
+On that firmware family it prefers the legacy `DILE_VT_Create(0)` initialization path and tries
+the undocumented DILE dump location `2` first, matching the webosbrew/hyperion-webos
+`QUIRK_ALTERNATIVE_DUMP_LOCATION` behavior. If a vendor variant rejects location `2`, the
+backend falls back to `DISPLAY_OUTPUT` and then `SCALER_OUTPUT`. Newer firmware keeps the
+existing CreateEx-first behavior.
