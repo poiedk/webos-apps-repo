@@ -15,6 +15,7 @@ APP_INFO = json.loads((APP_DIR / "appinfo.json").read_text(encoding="utf-8"))
 VERSION = APP_INFO["version"]
 OUTPUT_IPK = ROOT_DIR / "target" / f"org.webosbrew.lg-hue-sync_{VERSION}_all.ipk"
 OUTPUT_MANIFEST = ROOT_DIR / "target" / "org.webosbrew.lg-hue-sync.manifest.json"
+BINARY_PATH = os.environ.get("LG_HUE_SYNC_BINARY")
 
 def make_tarfile_bytes(files_dict):
     """Create a tar.gz in memory from a dict of {arcname: (bytes, mode)}"""
@@ -44,8 +45,8 @@ def build_ipk():
         "Section: misc\n"
         "Priority: optional\n"
         "Architecture: all\n"
-        "Maintainer: Adam <adam@adeze.com>\n"
-        "Description: Philips Hue & Nanoleaf Ambient Lighting Controller for LG C1\n"
+        "Maintainer: poiedk\n"
+        "Description: Native ambient lighting sync for WLED, Philips Hue and Nanoleaf on rooted LG webOS TVs\n"
     ).encode("utf-8")
     
     control_tar = make_tarfile_bytes({
@@ -61,6 +62,16 @@ def build_ipk():
             arcname = f"./{base_target}/{rel}"
             data_files[arcname] = (item.read_bytes(), 0o755 if item.suffix == ".sh" else 0o644)
             
+    if BINARY_PATH:
+        binary = Path(BINARY_PATH)
+        if not binary.is_file():
+            raise FileNotFoundError(f"LG_HUE_SYNC_BINARY not found: {binary}")
+        data_files[f"./{base_target}/bin/lg-hue-sync"] = (binary.read_bytes(), 0o755)
+
+    config_example = ROOT_DIR / "config.example.json"
+    if config_example.is_file():
+        data_files[f"./{base_target}/config.example.json"] = (config_example.read_bytes(), 0o644)
+
     data_tar = make_tarfile_bytes(data_files)
     
     # Assemble AR archive
@@ -102,10 +113,10 @@ def build_ipk():
         "type": APP_INFO["type"],
         "title": APP_INFO["title"],
         "appDescription": APP_INFO["appDescription"],
-        "iconUri": "https://raw.githubusercontent.com/adeze/lg-hue-sync/main/webos-app/icon130.png",
-        "sourceUrl": "https://github.com/adeze/lg-hue-sync",
+        "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/lg-hue-sync/webos-app/icon130.png",
+        "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/lg-hue-sync",
         "rootRequired": True,
-        "ipkUrl": OUTPUT_IPK.name,
+        "ipkUrl": f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/{OUTPUT_IPK.name}",
         "ipkHash": {"sha256": hashlib.sha256(OUTPUT_IPK.read_bytes()).hexdigest()},
         "ipkSize": OUTPUT_IPK.stat().st_size,
     }
