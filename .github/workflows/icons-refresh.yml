@@ -1,0 +1,178 @@
+name: Refresh webOS icons
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/icons-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SVG renderer
+        run: python3 -m pip install --disable-pip-version-check cairosvg
+
+      - name: Render Bold Badge PNG assets
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import cairosvg
+
+          root = Path(".")
+          specs = {
+              "wifi-watch": root / "apps/wifi-watch/app/bold-icon.svg",
+              "wled-fix": root / "apps/wled-fix/app/bold-icon.svg",
+              "lg-hue-sync": root / "apps/lg-hue-sync/webos-app/bold-icon.svg",
+          }
+          dirs = {
+              "wifi-watch": root / "apps/wifi-watch/app",
+              "wled-fix": root / "apps/wled-fix/app",
+              "lg-hue-sync": root / "apps/lg-hue-sync/webos-app",
+          }
+          sizes = [
+              ("icon.png", 80),
+              ("largeIcon.png", 130),
+              ("catalog-icon.png", 400),
+          ]
+
+          for app, svg in specs.items():
+              outdir = dirs[app]
+              for name, size in sizes:
+                  cairosvg.svg2png(
+                      url=str(svg),
+                      write_to=str(outdir / name),
+                      output_width=size,
+                      output_height=size,
+                  )
+          PY
+
+      - name: Point app metadata and catalog at PNG icons
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path(".")
+          appinfo_paths = [
+              root / "apps/wifi-watch/app/appinfo.json",
+              root / "apps/wled-fix/app/appinfo.json",
+              root / "apps/lg-hue-sync/webos-app/appinfo.json",
+          ]
+          for path in appinfo_paths:
+              data = json.loads(path.read_text())
+              data["icon"] = "icon.png"
+              data["largeIcon"] = "largeIcon.png"
+              path.write_text(json.dumps(data, indent=2) + "\n")
+
+          icons = {
+              "org.webosbrew.wifiwatch": (
+                  "apps/wifi-watch/app/catalog-icon.png",
+                  "wifi-watch",
+              ),
+              "org.webosbrew.wledfix": (
+                  "apps/wled-fix/app/catalog-icon.png",
+                  "wled-fix",
+              ),
+              "org.webosbrew.lg-hue-sync": (
+                  "apps/lg-hue-sync/webos-app/catalog-icon.png",
+                  "lg-hue-sync",
+              ),
+          }
+
+          # A new URL key forces legacy Homebrew Channel builds to drop the
+          # previously cached/broken artwork.
+          cache_key = "bold-badge-20260927-r2"
+
+          manifest_paths = {
+              "org.webosbrew.wifiwatch": root / "manifests/org.webosbrew.wifiwatch.json",
+              "org.webosbrew.wledfix": root / "manifests/org.webosbrew.wledfix.json",
+              "org.webosbrew.lg-hue-sync": root / "manifests/org.webosbrew.lg-hue-sync.json",
+          }
+          for app_id, path in manifest_paths.items():
+              data = json.loads(path.read_text())
+              rel, _ = icons[app_id]
+              data["iconUri"] = (
+                  f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/"
+                  f"{rel}?v={cache_key}"
+              )
+              path.write_text(json.dumps(data, indent=2) + "\n")
+
+          for name in ("repo.json", "repo-v3.json"):
+              path = root / name
+              data = json.loads(path.read_text())
+              for package in data.get("packages", []):
+                  app_id = package.get("id")
+                  if app_id not in icons:
+                      continue
+                  rel, _ = icons[app_id]
+                  uri = (
+                      f"https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/"
+                      f"{rel}?v={cache_key}"
+                  )
+                  package["iconUri"] = uri
+                  package.setdefault("manifest", {})["iconUri"] = uri
+              path.write_text(json.dumps(data, indent=2) + "\n")
+
+          # Keep the LG Hue Sync launcher using a PNG inside the app as well.
+          launcher = root / "apps/lg-hue-sync/webos-app/index.html"
+          text = launcher.read_text()
+          text = text.replace('src="bold-icon.png"', 'src="largeIcon.png"')
+          text = text.replace('src="bold-icon.svg"', 'src="largeIcon.png"')
+          launcher.write_text(text)
+
+          # Future LG Hue Sync releases should publish the dedicated catalog PNG.
+          package_script = root / "apps/lg-hue-sync/scripts/package_ipk.py"
+          text = package_script.read_text()
+          text = text.replace(
+              "apps/lg-hue-sync/webos-app/bold-icon.png",
+              "apps/lg-hue-sync/webos-app/catalog-icon.png",
+          )
+          text = text.replace(
+              "apps/lg-hue-sync/webos-app/bold-icon.svg",
+              "apps/lg-hue-sync/webos-app/catalog-icon.png",
+          )
+          package_script.write_text(text)
+          PY
+
+      - name: Verify PNG dimensions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          checks = [
+              ("apps/wifi-watch/app/icon.png", (80, 80)),
+              ("apps/wifi-watch/app/largeIcon.png", (130, 130)),
+              ("apps/wifi-watch/app/catalog-icon.png", (400, 400)),
+              ("apps/wled-fix/app/icon.png", (80, 80)),
+              ("apps/wled-fix/app/largeIcon.png", (130, 130)),
+              ("apps/wled-fix/app/catalog-icon.png", (400, 400)),
+              ("apps/lg-hue-sync/webos-app/icon.png", (80, 80)),
+              ("apps/lg-hue-sync/webos-app/largeIcon.png", (130, 130)),
+              ("apps/lg-hue-sync/webos-app/catalog-icon.png", (400, 400)),
+          ]
+          for path, expected in checks:
+              with Image.open(path) as im:
+                  if im.size != expected or im.format != "PNG":
+                      raise SystemExit(f"{path}: got {im.format} {im.size}, expected PNG {expected}")
+          PY
+
+      - name: Commit refreshed icons
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             apps/wifi-watch/app/icon.png             apps/wifi-watch/app/largeIcon.png             apps/wifi-watch/app/catalog-icon.png             apps/wifi-watch/app/appinfo.json             apps/wled-fix/app/icon.png             apps/wled-fix/app/largeIcon.png             apps/wled-fix/app/catalog-icon.png             apps/wled-fix/app/appinfo.json             apps/lg-hue-sync/webos-app/icon.png             apps/lg-hue-sync/webos-app/largeIcon.png             apps/lg-hue-sync/webos-app/catalog-icon.png             apps/lg-hue-sync/webos-app/appinfo.json             apps/lg-hue-sync/webos-app/index.html             apps/lg-hue-sync/scripts/package_ipk.py             manifests/ repo.json repo-v3.json
+          if git diff --cached --quiet; then
+            echo "Icons already current"
+            exit 0
+          fi
+          git commit -m "fix: refresh Bold Badge icons for Homebrew Channel"
+          git pull --rebase origin main
+          git push origin HEAD:main
