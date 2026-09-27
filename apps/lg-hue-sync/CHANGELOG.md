@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-27
+
+### Changed
+- Applied the shared Bold Badge webOS icon family to the launcher and launcher app UI.
+- Aligned LG Hue Sync visually with WiFi Watch and WLED Fix.
+
+
 ## [0.4.3] - 2026-09-27
 
 ### Fixed
