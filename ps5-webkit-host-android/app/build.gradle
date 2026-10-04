@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'gr.poiedk.ps5webkit'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'gr.poiedk.ps5webkit'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version = '3.13'
+        buildPython('python3')
+        pyc {
+            src = false
+        }
+    }
+}
