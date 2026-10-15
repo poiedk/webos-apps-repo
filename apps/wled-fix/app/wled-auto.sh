@@ -250,58 +250,65 @@ NEEDS_UPDATE="0"
 [ "$OLD_PROTOCOL" = "$NEW_PROTOCOL" ] || NEEDS_UPDATE="1"
 [ "$OLD_PORT" = "$NEW_PORT" ] || NEEDS_UPDATE="1"
 
-if [ "$NEEDS_UPDATE" = "0" ]; then
-  echo "STATUS=OK"
-  exit 0
-fi
+CONFIG_CHANGED="0"
+[ "$NEEDS_UPDATE" = "1" ] && CONFIG_CHANGED="1"
 
-if [ "$BACKUP" = "1" ]; then
-  TS=$(date +%Y%m%d-%H%M%S 2>/dev/null || echo now)
-  BK="$DB.wledfix-$TS.bak"
-  cp "$DB" "$BK" || fail "Could not create Hyperion DB backup"
-  echo "BACKUP=$BK"
-
-  i=$(ls -1t "$DB".wledfix-*.bak 2>/dev/null | awk -v keep="$KEEP_BACKUPS" 'NR>keep {print}')
-  [ -n "$i" ] && echo "$i" | while IFS= read -r f; do rm -f "$f"; done
-fi
-
-NEW_CONFIG=$(echo "$DEVICE_CONFIG" |
-  sed 's/"host":"[^"]*"/"host":"'"$WLED_IP"'"/' |
-  sed 's/"hostList":"[^"]*"/"hostList":"'"$WLED_IP"'"/')
-
-if echo "$NEW_CONFIG" | grep -q '"streamProtocol":"[^"]*"'; then
-  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"[^"]*"/"streamProtocol":"'"$NEW_PROTOCOL"'"/')
+if [ "$NEEDS_UPDATE" = "1" ]; then
+  if [ "$BACKUP" = "1" ]; then
+    TS=$(date +%Y%m%d-%H%M%S 2>/dev/null || echo now)
+    BK="$DB.wledfix-$TS.bak"
+    cp "$DB" "$BK" || fail "Could not create Hyperion DB backup"
+    echo "BACKUP=$BK"
+  
+    i=$(ls -1t "$DB".wledfix-*.bak 2>/dev/null | awk -v keep="$KEEP_BACKUPS" 'NR>keep {print}')
+    [ -n "$i" ] && echo "$i" | while IFS= read -r f; do rm -f "$f"; done
+  fi
+  
+  NEW_CONFIG=$(echo "$DEVICE_CONFIG" |
+    sed 's/"host":"[^"]*"/"host":"'"$WLED_IP"'"/' |
+    sed 's/"hostList":"[^"]*"/"hostList":"'"$WLED_IP"'"/')
+  
+  if echo "$NEW_CONFIG" | grep -q '"streamProtocol":"[^"]*"'; then
+    NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"[^"]*"/"streamProtocol":"'"$NEW_PROTOCOL"'"/')
+  else
+    NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"type":"wled"/"streamProtocol":"'"$NEW_PROTOCOL"'","type":"wled"/')
+  fi
+  
+  if echo "$NEW_CONFIG" | grep -q '"port":[0-9][0-9]*'; then
+    NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"port":[0-9][0-9]*/"port":'"$NEW_PORT"'/')
+  else
+    NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"'"$NEW_PROTOCOL"'"/"streamProtocol":"'"$NEW_PROTOCOL"'","port":'"$NEW_PORT"'/')
+  fi
+  
+  SQL_CONFIG=$(printf "%s" "$NEW_CONFIG" | sed "s/'/''/g")
+  sqlite3 "$DB" "
+  UPDATE settings
+  SET config='$SQL_CONFIG',
+      updated_at=datetime('now')
+  WHERE type='device'
+    AND hyperion_inst=$INSTANCE
+    AND config LIKE '%\"type\":\"wled\"%';
+  " || fail "Could not update Hyperion database"
+  
+  VERIFY_CONFIG=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
+  VERIFY_HOST=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
+  VERIFY_PROTOCOL=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"streamProtocol":"\([^"]*\)".*/\1/p')
+  VERIFY_PORT=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"port":\([0-9][0-9]*\).*/\1/p')
+  
+  [ "$VERIFY_HOST" = "$WLED_IP" ] || fail "Hyperion target verification failed"
+  [ "$VERIFY_PROTOCOL" = "$NEW_PROTOCOL" ] || fail "Hyperion protocol verification failed"
+  [ "$VERIFY_PORT" = "$NEW_PORT" ] || fail "Hyperion port verification failed"
+  
+  
 else
-  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"type":"wled"/"streamProtocol":"'"$NEW_PROTOCOL"'","type":"wled"/')
+  VERIFY_HOST="$WLED_IP"
+  VERIFY_PROTOCOL="$NEW_PROTOCOL"
+  VERIFY_PORT="$NEW_PORT"
 fi
-
-if echo "$NEW_CONFIG" | grep -q '"port":[0-9][0-9]*'; then
-  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"port":[0-9][0-9]*/"port":'"$NEW_PORT"'/')
-else
-  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"'"$NEW_PROTOCOL"'"/"streamProtocol":"'"$NEW_PROTOCOL"'","port":'"$NEW_PORT"'/')
-fi
-
-SQL_CONFIG=$(printf "%s" "$NEW_CONFIG" | sed "s/'/''/g")
-sqlite3 "$DB" "
-UPDATE settings
-SET config='$SQL_CONFIG',
-    updated_at=datetime('now')
-WHERE type='device'
-  AND hyperion_inst=$INSTANCE
-  AND config LIKE '%\"type\":\"wled\"%';
-" || fail "Could not update Hyperion database"
-
-VERIFY_CONFIG=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
-VERIFY_HOST=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
-VERIFY_PROTOCOL=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"streamProtocol":"\([^"]*\)".*/\1/p')
-VERIFY_PORT=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"port":\([0-9][0-9]*\).*/\1/p')
-
-[ "$VERIFY_HOST" = "$WLED_IP" ] || fail "Hyperion target verification failed"
-[ "$VERIFY_PROTOCOL" = "$NEW_PROTOCOL" ] || fail "Hyperion protocol verification failed"
-[ "$VERIFY_PORT" = "$NEW_PORT" ] || fail "Hyperion port verification failed"
 
 echo "OLD_TARGET=$OLD"
 echo "NEW_TARGET=$VERIFY_HOST"
+echo "CONFIG_CHANGED=$CONFIG_CHANGED"
 
 if [ "$RESTART" = "1" ]; then
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
@@ -311,16 +318,45 @@ if [ "$RESTART" = "1" ]; then
 fi
 
 VERIFIED="0"
+LIVE_VERIFIED="0"
+LIVE_SOURCE=""
+
 if [ "$VERIFY" = "1" ]; then
-  SINFO=$(wget -T 2 -qO- http://127.0.0.1:8090/json-rpc     --post-data='{"command":"serverinfo","tan":71}'     --header='Content-Type: application/json' 2>/dev/null)
+  SINFO=$(wget -T 2 -qO- http://127.0.0.1:8090/json-rpc \
+    --post-data='{"command":"serverinfo","tan":71}' \
+    --header='Content-Type: application/json' 2>/dev/null)
   echo "$SINFO" | tr '\n' ' ' | grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"|"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"[^}]*"enabled"[[:space:]]*:[[:space:]]*true' && VERIFIED="1"
-  [ "$VERIFIED" = "1" ] || fail "Hyperion updated, but LEDDEVICE did not verify as enabled"
+  [ "$VERIFIED" = "1" ] || fail "Hyperion LEDDEVICE is not enabled"
+
+  # End-to-end probe: ask Hyperion for a short color frame, then confirm
+  # that WLED reports itself in realtime mode. This detects the exact case
+  # where the DB looks correct but UDP packets never reach WLED.
+  wget -T 2 -qO- http://127.0.0.1:8090/json-rpc \
+    --post-data='{"command":"color","color":[24,64,160],"priority":50,"duration":4000,"tan":72}' \
+    --header='Content-Type: application/json' >/dev/null 2>&1
+  sleep 1
+  LIVE_INFO=$(wget -T 2 -qO- "http://$WLED_IP/json/info" 2>/dev/null)
+  echo "$LIVE_INFO" | grep -Eq '"live"[[:space:]]*:[[:space:]]*true' && LIVE_VERIFIED="1"
+  LIVE_SOURCE=$(echo "$LIVE_INFO" | sed -n 's/.*"lip"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+  echo "LIVE_VERIFIED=$LIVE_VERIFIED"
+  [ -n "$LIVE_SOURCE" ] && echo "LIVE_SOURCE=$LIVE_SOURCE"
+
+  if [ "$LIVE_VERIFIED" != "1" ]; then
+    fail "Hyperion is configured, but WLED did not enter realtime mode. Enable Receive UDP realtime in WLED or try DDP."
+  fi
 fi
+
 echo "VERIFIED=$VERIFIED"
 
 if [ "$TEST_LEDS" = "1" ]; then
-  wget -T 2 -qO- http://127.0.0.1:8090/json-rpc     --post-data='{"command":"color","color":[40,80,255],"priority":50,"duration":500,"tan":72}'     --header='Content-Type: application/json' >/dev/null 2>&1
+  wget -T 2 -qO- http://127.0.0.1:8090/json-rpc \
+    --post-data='{"command":"color","color":[40,80,255],"priority":50,"duration":1500,"tan":73}' \
+    --header='Content-Type: application/json' >/dev/null 2>&1
 fi
 
-echo "STATUS=UPDATED"
+if [ "$CONFIG_CHANGED" = "1" ]; then
+  echo "STATUS=UPDATED"
+else
+  echo "STATUS=OK"
+fi
 exit 0
