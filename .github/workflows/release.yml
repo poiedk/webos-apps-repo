@@ -60,6 +60,8 @@ jobs:
             test -x apps/wifi-watch/service/autostart.sh
             ares-package --no-minify --outdir dist apps/wifi-watch/app apps/wifi-watch/service
           else
+            sh -n apps/wled-fix/app/wled-auto.sh
+            test -x apps/wled-fix/app/wled-auto.sh
             ares-package --no-minify --outdir dist apps/wled-fix/app
           fi
           IPK="$(find dist -maxdepth 1 -name '*.ipk' -print -quit)"
@@ -87,6 +89,11 @@ jobs:
             }
             ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/services/org.webosbrew.wifiwatch.service/autostart.sh' || {
               echo "::error::WiFi Watch autostart hook is missing or not executable in the IPK"
+              exit 1
+            }
+          else
+            ar p "$IPK" data.tar.gz | tar -tvzf - | grep -q '^-..x.*usr/palm/applications/org.webosbrew.wledfix/wled-auto.sh' || {
+              echo "::error::WLED Fix script is missing or not executable in the IPK"
               exit 1
             }
           fi

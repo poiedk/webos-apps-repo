@@ -65,7 +65,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       <div class="title">WLED Fix</div>
       <div class="subtitle">Hyperion and WLED recovery</div>
     </div>
-    <div class="version">v1.1.17</div>
+    <div class="version">v1.1.18</div>
   </div>
 
   <section id="main" class="screen active home">
@@ -111,7 +111,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     </div>
 
     <div id="technical" class="tech"></div>
-    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.1.17</span></div>
+    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.1.18</span></div>
   </section>
 
   <section id="simple" class="screen settingsPage">
@@ -132,7 +132,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
   var DEFAULTS={
     autoScan:false,autoClose:false,verify:true,testLeds:false,showTechnical:false,
     fastScan:true,fullScan:true,timeout:1,instance:0,restart:true,iface:"wlan0",
-    backup:true,keepBackups:3,verbose:false
+    backup:true,keepBackups:3,verbose:false,protocol:"AUTO"
   };
   var settings=loadSettings(),screen="main",focus=0,busy=false,lastRaw="";
 
@@ -160,6 +160,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     {k:"fullScan",label:"Full subnet fallback",hint:"Scan the local /24 if WLED is not found quickly",type:"bool"},
     {k:"timeout",label:"Scan timeout",hint:"Per-device network request timeout",type:"cycle",vals:[1,2],suffix:" sec"},
     {k:"instance",label:"Hyperion instance",hint:"Hyperion configuration instance to update",type:"cycle",vals:[0,1,2,3]},
+    {k:"protocol",label:"Streaming protocol",hint:"AUTO uses RAW on a direct WLED-AP link and DDP on normal Wi-Fi",type:"cycle",vals:["AUTO","DDP","RAW"]},
     {k:"restart",label:"Restart Hyperion",hint:"Restart the Hyperion service after a change",type:"bool"},
     {k:"iface",label:"Network interface",hint:"Interface used for discovery",type:"cycle",vals:["wlan0","eth0"]},
     {k:"backup",label:"Backup Hyperion DB",hint:"Create a database backup before modifying the target",type:"bool"},
@@ -225,6 +226,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       " --iface "+settings.iface+
       " --timeout "+settings.timeout+
       " --instance "+settings.instance+
+      " --protocol "+settings.protocol.toLowerCase()+
       " --fast "+shellBool(settings.fastScan)+
       " --full "+shellBool(settings.fullScan)+
       " --verify "+shellBool(settings.verify)+
@@ -279,10 +281,12 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
 
     if(result==="UPDATED"){
       document.getElementById("resultText").textContent="Connection repaired";
-      document.getElementById("resultSub").textContent="Hyperion now points to "+(data.NEW_TARGET||data.WLED_IP||"the detected WLED controller")+".";
+      var protocol=data.PROTOCOL_NEW?(" using "+data.PROTOCOL_NEW+(data.PORT?"/"+data.PORT:"")):"";
+      document.getElementById("resultSub").textContent="Hyperion now points to "+(data.NEW_TARGET||data.WLED_IP||"the detected WLED controller")+protocol+".";
     }else if(result==="OK"){
       document.getElementById("resultText").textContent="Everything is OK";
-      document.getElementById("resultSub").textContent="Hyperion already points to the detected WLED controller.";
+      var activeProtocol=data.PROTOCOL_NEW||data.PROTOCOL_OLD||"";
+      document.getElementById("resultSub").textContent="Hyperion already points to the detected WLED controller"+(activeProtocol?(" using "+activeProtocol+(data.PORT?"/"+data.PORT:"")):"")+".";
     }else{
       document.getElementById("resultText").textContent="Check failed";
       document.getElementById("resultSub").textContent=data.ERROR||"WLED Fix could not complete the check.";

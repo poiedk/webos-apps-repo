@@ -5,6 +5,7 @@ SERVICE="org.webosbrew.hyperion.ng.loader.service"
 IFACE="wlan0"
 TIMEOUT="1"
 INSTANCE="0"
+PROTOCOL="auto"
 FAST="1"
 FULL="1"
 VERIFY="1"
@@ -20,6 +21,7 @@ while [ "$#" -gt 0 ]; do
     --interface|--iface) IFACE="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
     --instance) INSTANCE="$2"; shift 2 ;;
+    --protocol) PROTOCOL="$2"; shift 2 ;;
     --fast) FAST="$2"; shift 2 ;;
     --full) FULL="$2"; shift 2 ;;
     --verify) VERIFY="$2"; shift 2 ;;
@@ -31,6 +33,13 @@ while [ "$#" -gt 0 ]; do
     *) shift ;;
   esac
 done
+
+case "$PROTOCOL" in
+  auto|AUTO) PROTOCOL="auto" ;;
+  ddp|DDP) PROTOCOL="ddp" ;;
+  raw|RAW) PROTOCOL="raw" ;;
+  *) PROTOCOL="auto" ;;
+esac
 
 log(){ [ "$VERBOSE" = "1" ] && echo "LOG=$1"; }
 fail(){ echo "STATUS=ERROR"; echo "ERROR=$1"; exit 1; }
@@ -65,8 +74,8 @@ echo "TV_IP=$MYIP"
 echo "INTERFACE=$IFACE"
 log "Subnet $NET.0/24 via $IFACE"
 
-OLD=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null |
-  sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
+DEVICE_CONFIG=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
+OLD=$(echo "$DEVICE_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
 
 if [ -z "$OLD" ]; then
   AUTO_ROW=$(sqlite3 -separator '|' "$DB" "SELECT hyperion_inst, config FROM settings WHERE type='device' AND config LIKE '%\"type\":\"wled\"%' ORDER BY hyperion_inst LIMIT 1;" 2>/dev/null)
@@ -77,13 +86,25 @@ if [ -z "$OLD" ]; then
   if [ -n "$AUTO_INSTANCE" ] && [ -n "$AUTO_OLD" ]; then
     echo "INSTANCE_FALLBACK=$INSTANCE->$AUTO_INSTANCE"
     INSTANCE="$AUTO_INSTANCE"
+    DEVICE_CONFIG="$AUTO_CONFIG"
     OLD="$AUTO_OLD"
   fi
 fi
 
 [ -n "$OLD" ] || fail "No Hyperion WLED device configuration found"
+
+OLD_PROTOCOL=$(echo "$DEVICE_CONFIG" | sed -n 's/.*"streamProtocol":"\([^"]*\)".*/\1/p')
+[ -n "$OLD_PROTOCOL" ] || OLD_PROTOCOL="DDP"
+OLD_PORT=$(echo "$DEVICE_CONFIG" | sed -n 's/.*"port":\([0-9][0-9]*\).*/\1/p')
+if [ -z "$OLD_PORT" ]; then
+  [ "$OLD_PROTOCOL" = "RAW" ] && OLD_PORT="19446" || OLD_PORT="4048"
+fi
+LED_COUNT=$(echo "$DEVICE_CONFIG" | sed -n 's/.*"hardwareLedCount":\([0-9][0-9]*\).*/\1/p')
+
 echo "HYPERION_INSTANCE=$INSTANCE"
 echo "HYPERION_TARGET=$OLD"
+echo "PROTOCOL_OLD=$OLD_PROTOCOL"
+echo "PORT_OLD=$OLD_PORT"
 
 case "$OLD" in
   "$NET".*) ;;
@@ -171,7 +192,65 @@ fi
 echo "WLED_IP=$WLED_IP"
 echo "DISCOVERY=$DISCOVERY"
 
-if [ "$OLD" = "$WLED_IP" ]; then
+WLED_INFO=$(wget -T "$TIMEOUT" -qO- "http://$WLED_IP/json/info" 2>/dev/null) || fail "WLED stopped responding during verification"
+WLED_AP_INFO="0"
+echo "$WLED_INFO" | grep -Eq '"ap"[[:space:]]*:[[:space:]]*true' && WLED_AP_INFO="1"
+
+GATEWAY=""
+if command -v route >/dev/null 2>&1; then
+  GATEWAY=$(route -n 2>/dev/null | awk -v iface="$IFACE" '$1=="0.0.0.0" && $8==iface {print $2; exit}')
+fi
+if [ -z "$GATEWAY" ] && command -v ip >/dev/null 2>&1; then
+  GATEWAY=$(ip route 2>/dev/null | awk -v iface="$IFACE" '$1=="default" && $0 ~ ("dev " iface) {for(i=1;i<=NF;i++) if($i=="via"){print $(i+1); exit}}')
+fi
+
+DIRECT_AP="0"
+if [ -n "$GATEWAY" ] && [ "$GATEWAY" = "$WLED_IP" ]; then
+  DIRECT_AP="1"
+fi
+
+echo "WLED_AP_INFO=$WLED_AP_INFO"
+echo "DIRECT_WLED_AP=$DIRECT_AP"
+[ -n "$GATEWAY" ] && echo "GATEWAY=$GATEWAY"
+
+case "$PROTOCOL" in
+  raw)
+    NEW_PROTOCOL="RAW"
+    NEW_PORT="19446"
+    PROTOCOL_REASON="manual-raw"
+    ;;
+  ddp)
+    NEW_PROTOCOL="DDP"
+    NEW_PORT="4048"
+    PROTOCOL_REASON="manual-ddp"
+    ;;
+  *)
+    if [ "$DIRECT_AP" = "1" ]; then
+      NEW_PROTOCOL="RAW"
+      NEW_PORT="19446"
+      PROTOCOL_REASON="direct-wled-ap"
+    else
+      NEW_PROTOCOL="DDP"
+      NEW_PORT="4048"
+      PROTOCOL_REASON="normal-network"
+    fi
+    ;;
+esac
+
+if [ "$NEW_PROTOCOL" = "RAW" ] && [ -n "$LED_COUNT" ] && [ "$LED_COUNT" -gt 490 ] 2>/dev/null; then
+  fail "UDP RAW supports at most 490 LEDs; select DDP"
+fi
+
+echo "PROTOCOL_NEW=$NEW_PROTOCOL"
+echo "PORT=$NEW_PORT"
+echo "PROTOCOL_REASON=$PROTOCOL_REASON"
+
+NEEDS_UPDATE="0"
+[ "$OLD" = "$WLED_IP" ] || NEEDS_UPDATE="1"
+[ "$OLD_PROTOCOL" = "$NEW_PROTOCOL" ] || NEEDS_UPDATE="1"
+[ "$OLD_PORT" = "$NEW_PORT" ] || NEEDS_UPDATE="1"
+
+if [ "$NEEDS_UPDATE" = "0" ]; then
   echo "STATUS=OK"
   exit 0
 fi
@@ -186,29 +265,43 @@ if [ "$BACKUP" = "1" ]; then
   [ -n "$i" ] && echo "$i" | while IFS= read -r f; do rm -f "$f"; done
 fi
 
+NEW_CONFIG=$(echo "$DEVICE_CONFIG" |
+  sed 's/"host":"[^"]*"/"host":"'"$WLED_IP"'"/' |
+  sed 's/"hostList":"[^"]*"/"hostList":"'"$WLED_IP"'"/')
+
+if echo "$NEW_CONFIG" | grep -q '"streamProtocol":"[^"]*"'; then
+  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"[^"]*"/"streamProtocol":"'"$NEW_PROTOCOL"'"/')
+else
+  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"type":"wled"/"streamProtocol":"'"$NEW_PROTOCOL"'","type":"wled"/')
+fi
+
+if echo "$NEW_CONFIG" | grep -q '"port":[0-9][0-9]*'; then
+  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"port":[0-9][0-9]*/"port":'"$NEW_PORT"'/')
+else
+  NEW_CONFIG=$(echo "$NEW_CONFIG" | sed 's/"streamProtocol":"'"$NEW_PROTOCOL"'"/"streamProtocol":"'"$NEW_PROTOCOL"'","port":'"$NEW_PORT"'/')
+fi
+
+SQL_CONFIG=$(printf "%s" "$NEW_CONFIG" | sed "s/'/''/g")
 sqlite3 "$DB" "
 UPDATE settings
-SET config = replace(
-               replace(
-                 config,
-                 '\"host\":\"$OLD\"',
-                 '\"host\":\"$WLED_IP\"'
-               ),
-               '\"hostList\":\"$OLD\"',
-               '\"hostList\":\"$WLED_IP\"'
-             ),
-    updated_at = datetime('now')
+SET config='$SQL_CONFIG',
+    updated_at=datetime('now')
 WHERE type='device'
   AND hyperion_inst=$INSTANCE
   AND config LIKE '%\"type\":\"wled\"%';
 " || fail "Could not update Hyperion database"
 
-NEW=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null |
-  sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
-[ "$NEW" = "$WLED_IP" ] || fail "Hyperion target verification failed"
+VERIFY_CONFIG=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
+VERIFY_HOST=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
+VERIFY_PROTOCOL=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"streamProtocol":"\([^"]*\)".*/\1/p')
+VERIFY_PORT=$(echo "$VERIFY_CONFIG" | sed -n 's/.*"port":\([0-9][0-9]*\).*/\1/p')
+
+[ "$VERIFY_HOST" = "$WLED_IP" ] || fail "Hyperion target verification failed"
+[ "$VERIFY_PROTOCOL" = "$NEW_PROTOCOL" ] || fail "Hyperion protocol verification failed"
+[ "$VERIFY_PORT" = "$NEW_PORT" ] || fail "Hyperion port verification failed"
 
 echo "OLD_TARGET=$OLD"
-echo "NEW_TARGET=$NEW"
+echo "NEW_TARGET=$VERIFY_HOST"
 
 if [ "$RESTART" = "1" ]; then
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
