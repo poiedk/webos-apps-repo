@@ -1,0 +1,1 @@
+release WLED Fix 1.1.20 - avoid needless Hyperion restart and cap checks at 30s

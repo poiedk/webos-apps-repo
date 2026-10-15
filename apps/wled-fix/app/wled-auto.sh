@@ -310,11 +310,14 @@ echo "OLD_TARGET=$OLD"
 echo "NEW_TARGET=$VERIFY_HOST"
 echo "CONFIG_CHANGED=$CONFIG_CHANGED"
 
-if [ "$RESTART" = "1" ]; then
+if [ "$RESTART" = "1" ] && [ "$CONFIG_CHANGED" = "1" ]; then
+  echo "RESTARTING_HYPERION=1"
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
   sleep 2
   luna-send -n 1 "luna://$SERVICE/start" '{}' >/dev/null 2>&1
   sleep 3
+else
+  echo "RESTARTING_HYPERION=0"
 fi
 
 VERIFIED="0"
@@ -332,7 +335,7 @@ if [ "$VERIFY" = "1" ]; then
   # that WLED reports itself in realtime mode. This detects the exact case
   # where the DB looks correct but UDP packets never reach WLED.
   wget -T 2 -qO- http://127.0.0.1:8090/json-rpc \
-    --post-data='{"command":"color","color":[24,64,160],"priority":50,"duration":4000,"tan":72}' \
+    --post-data='{"command":"color","color":[24,64,160],"priority":50,"duration":1800,"tan":72}' \
     --header='Content-Type: application/json' >/dev/null 2>&1
   sleep 1
   LIVE_INFO=$(wget -T 2 -qO- "http://$WLED_IP/json/info" 2>/dev/null)
