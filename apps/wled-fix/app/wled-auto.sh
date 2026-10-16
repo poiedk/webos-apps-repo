@@ -329,7 +329,24 @@ if [ "$VERIFY" = "1" ]; then
     --post-data='{"command":"serverinfo","tan":71}' \
     --header='Content-Type: application/json' 2>/dev/null)
   echo "$SINFO" | tr '\n' ' ' | grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"|"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"[^}]*"enabled"[[:space:]]*:[[:space:]]*true' && VERIFIED="1"
-  [ "$VERIFIED" = "1" ] || fail "Hyperion LEDDEVICE is not enabled"
+
+  if [ "$VERIFIED" != "1" ]; then
+    echo "LEDDEVICE_RECOVERY=attempt"
+    ENABLE_REPLY=$(wget -T 3 -qO- http://127.0.0.1:8090/json-rpc \
+      --post-data='{"command":"componentstate","componentstate":{"component":"LEDDEVICE","state":true},"tan":90}' \
+      --header='Content-Type: application/json' 2>/dev/null)
+    echo "$ENABLE_REPLY" | grep -Eq '"success"[[:space:]]*:[[:space:]]*true' || fail "Hyperion refused to enable LEDDEVICE"
+    sleep 1
+
+    SINFO=$(wget -T 2 -qO- http://127.0.0.1:8090/json-rpc \
+      --post-data='{"command":"serverinfo","tan":91}' \
+      --header='Content-Type: application/json' 2>/dev/null)
+    echo "$SINFO" | tr '\n' ' ' | grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"|"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"[^}]*"enabled"[[:space:]]*:[[:space:]]*true' && VERIFIED="1"
+    [ "$VERIFIED" = "1" ] || fail "Hyperion LEDDEVICE could not be enabled"
+    echo "LEDDEVICE_RECOVERY=enabled"
+  else
+    echo "LEDDEVICE_RECOVERY=not-needed"
+  fi
 
   # End-to-end probe: ask Hyperion for a short color frame, then confirm
   # that WLED reports itself in realtime mode. This detects the exact case
