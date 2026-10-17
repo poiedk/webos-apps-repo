@@ -312,6 +312,8 @@ function maybeAutoRecover(r){
   // Safe by default: no automatic changes during SSID switching or without a stable service.
   if(!r.ssid||r.ssid==='--'||!r.ip||r.connman!=='connected')return;
   if(r.cause==='Wi-Fi interface is dormant')return;
+  // Gateway-only devices may intentionally refuse ICMP; never auto-reset those links.
+  if(r.cause==='Gateway unreachable')return;
   if(autoFixGraceRemaining()>0)return;
   if(r.state!=='Problem'&&r.state!=='Offline')return;
   runRecovery('quick','auto',r.cause,function(){});
@@ -513,7 +515,7 @@ service.register('networkAction',function(m){
       'if [ "$ACTIVE" = '+shellQuote(id)+' ] && [ '+shellQuote(action)+' = forget ]; then echo "BLOCKED_ACTIVE"; exit 0; fi; '+
       'connmanctl '+(action==='forget'?'remove':action)+' '+shellQuote(id)+' 2>&1';
     rootExec(cmd,function(err,out){
-      m.respond({returnValue:true,success:!err&&!/Error|Failed|BLOCKED_ACTIVE|not found/i.test(out||''),message:err?String(err):String(out||'Completed').slice(0,300)});
+      m.respond({returnValue:true,success:!err&&!/Error|Failed|BLOCKED_ACTIVE|not found|not supported|invalid/i.test(out||''),message:err?String(err):String(out||'Completed').slice(0,300)});
     });
   });
 });
