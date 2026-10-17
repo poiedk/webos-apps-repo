@@ -1,7 +1,7 @@
 (function(){
   var SVC='luna://org.webosbrew.wifiwatch.service/';
   var screen='home',focus=0,current={},settings=null,busy=false;
-  var networks=[],selectedNetwork=null,netActions=[];
+  var networks=[],selectedNetwork=null,netActions=[],pendingNetworkAction=null;
 
   var simpleItems=[
     {k:'backgroundWatchdog',label:'Background watchdog',hint:'Start WiFi Watch automatically after TV boot',type:'bool'},
@@ -223,6 +223,7 @@
   function openNetwork(n){
     if(!n)return;
     selectedNetwork=n;
+    pendingNetworkAction=null;
     document.getElementById('netDetailTitle').textContent=n.name||'Network';
     document.getElementById('netDetailInfo').textContent='Service: '+n.id+' | Favorite: '+!!n.favorite+' | Connected: '+!!n.connected+' | Password never displayed';
     netActions=[];
@@ -239,11 +240,19 @@
     }).join('');
   }
   function networkAction(action){
-    if(action.id==='back'){setScreen('networks');return;}
-    if(action.id==='password'){openPassword();return;}
+    if(action.id==='back'){pendingNetworkAction=null;setScreen('networks');return;}
+    if(action.id==='password'){pendingNetworkAction=null;openPassword();return;}
     if(!selectedNetwork||busy)return;
-    if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? You may need the password again.'))return;
-    if(action.id==='disconnect'&&!window.confirm('Disconnect '+selectedNetwork.name+'? Remote access may be lost.'))return;
+    if(action.id==='forget'||action.id==='disconnect'){
+      if(pendingNetworkAction!==action.id){
+        pendingNetworkAction=action.id;
+        document.getElementById('netDetailInfo').textContent=
+          'Confirm '+action.id.toUpperCase()+' for '+selectedNetwork.name+
+          ': press OK again on the SAME action, or move to another action to cancel. This can interrupt Wi-Fi.';
+        return;
+      }
+    }
+    pendingNetworkAction=null;
     busy=true;
     document.getElementById('netDetailInfo').textContent='Working...';
     call('networkAction',{action:action.id,id:selectedNetwork.id},function(e,r){
@@ -348,7 +357,7 @@
 
     if(code===461||code===27){
       if(screen==='advanced')setScreen('settings');
-      else if(screen==='networkDetail')setScreen('networks');
+      else if(screen==='networkDetail'){pendingNetworkAction=null;setScreen('networks');}
       else if(screen==='password'){document.getElementById('networkPassword').value='';setScreen('networkDetail');}
       else if(screen==='networks')setScreen('home');
       else if(screen==='settings'||screen==='diagnostics')setScreen('home');
@@ -374,8 +383,8 @@
         return;
       }
       max=screen==='networks'?networks.length+1:(screen==='password'?3:netActions.length);
-      if(code===38){focus=(focus-1+max)%max;renderFocus();ev.preventDefault();}
-      else if(code===40){focus=(focus+1)%max;renderFocus();ev.preventDefault();}
+      if(code===38){pendingNetworkAction=null;focus=(focus-1+max)%max;renderFocus();ev.preventDefault();}
+      else if(code===40){pendingNetworkAction=null;focus=(focus+1)%max;renderFocus();ev.preventDefault();}
       else if(code===13){activate();ev.preventDefault();}
       return;
     }
