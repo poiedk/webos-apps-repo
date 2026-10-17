@@ -96,6 +96,7 @@
     document.getElementById('home').className='screen home'+(id==='home'?' active':'');
     document.getElementById('diagnosticsScreen').className='screen page'+(id==='diagnostics'?' active':'');
     document.getElementById('settingsScreen').className='screen page'+(id==='settings'?' active':'');
+    document.getElementById('passwordScreen').className='screen page'+(id==='password'?' active':'');
     document.getElementById('networksScreen').className='screen page'+(id==='networks'?' active':'');
     document.getElementById('networkDetailScreen').className='screen page'+(id==='networkDetail'?' active':'');
     document.getElementById('advancedScreen').className='screen page'+(id==='advanced'?' active':'');
@@ -109,6 +110,8 @@
       for(i=0;i<a.length;i++)a[i].className='action'+(i===focus?' focus':'')+(i===a.length-1?' last':'');
     }else if(screen==='networks'){
       renderNetworks();
+    }else if(screen==='password'){
+      renderPasswordFocus();
     }else if(screen==='networkDetail'){
       renderNetworkActions();
     }else if(screen==='settings'){
@@ -217,6 +220,7 @@
     document.getElementById('netDetailInfo').textContent='Service: '+n.id+' | Favorite: '+!!n.favorite+' | Connected: '+!!n.connected+' | Password never displayed';
     netActions=[];
     if(n.visible&&!n.connected)netActions.push({id:'connect',label:'Connect (saved credentials only)'});
+    if(n.id.indexOf('_managed_psk')>=0)netActions.push({id:'password',label:'Enter password and save'});
     if(n.visible&&n.connected)netActions.push({id:'disconnect',label:'Disconnect'});
     if(n.favorite)netActions.push({id:'forget',label:'Forget saved network',danger:true});
     netActions.push({id:'back',label:'Back to networks'});
@@ -229,6 +233,7 @@
   }
   function networkAction(action){
     if(action.id==='back'){setScreen('networks');return;}
+    if(action.id==='password'){openPassword();return;}
     if(!selectedNetwork||busy)return;
     if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? You may need the Wi-Fi password again.'))return;
     if(action.id==='disconnect'&&!window.confirm('Disconnect '+selectedNetwork.name+'? Remote access may be lost.'))return;
@@ -268,6 +273,12 @@
     if(screen==='diagnostics'){
       showDiagnostics();return;
     }
+    if(screen==='password'){
+      if(focus===0)document.getElementById('networkPassword').focus();
+      else if(focus===1)submitPassword();
+      else setScreen('networkDetail');
+      return;
+    }
     if(screen==='networks'){
       if(focus===0)loadNetworks();else openNetwork(networks[focus-1]);
       return;
@@ -298,6 +309,7 @@
     if(code===461||code===27){
       if(screen==='advanced')setScreen('settings');
       else if(screen==='networkDetail')setScreen('networks');
+      else if(screen==='password'){document.getElementById('networkPassword').value='';setScreen('networkDetail');}
       else if(screen==='settings'||screen==='diagnostics')setScreen('home');
       ev.preventDefault();return;
     }
@@ -314,8 +326,9 @@
       return;
     }
 
-    if(screen==='networks'||screen==='networkDetail'){
-      max=screen==='networks'?networks.length+1:netActions.length;
+    if(screen==='networks'||screen==='networkDetail'||screen==='password'){
+      if(screen==='password'&&document.activeElement===document.getElementById('networkPassword'))return;
+      max=screen==='networks'?networks.length+1:(screen==='password'?3:netActions.length);
       if(code===38){focus=(focus-1+max)%max;renderFocus();ev.preventDefault();}
       else if(code===40){focus=(focus+1)%max;renderFocus();ev.preventDefault();}
       else if(code===13){activate();ev.preventDefault();}
