@@ -475,7 +475,7 @@ function diagnosticsText(cb){
 /* Network management: fixed ConnMan IDs only; never log credentials. */
 function networkId(id){return /^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)$/.test(String(id||''));}
 function parsedNetworks(output){
-  var items={},lines=String(output||'').split(/\\r?\\n/),section='',v,id,m;
+  var items={},lines=String(output||'').split(/\r?\n/),v,id;
   lines.forEach(function(line){
     if(line.indexOf('PROFILE|')===0){
       v=line.split('|');id=v[1];if(!networkId(id))return;
@@ -498,7 +498,7 @@ service.register('listNetworks',function(m){
       'name="$(sed -n "s/^Name=//p" "$f" | head -n 1 | tr "\\r\\n| " "   ")"; '+
       'fav="$(sed -n "s/^Favorite=//p" "$f" | head -n 1)"; '+
       'printf "PROFILE|%s|%s\\nDETAIL|%s|%s\\n" "$id" "$name" "$id" "$fav"; done; '+
-      'connmanctl services | awk \'{for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {id=$i; name=$0; sub(/^.*[[:space:]]wifi_[^[:space:]]+$/, "", name); sub(/^[*AORF ]+/, "",name); printf "SERVICE|%s|%d|%s\\n",id, ($1 ~ /^\\*A/),name; break}}\'';
+      'connmanctl services | awk \'{for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {id=$i; name=""; for(j=2;j<i;j++)name=name (name?" ":"") $j; printf "SERVICE|%s|%d|%s\\n",id, ($1 ~ /^\\*A/),name; break}}\'';
     rootExec(cmd,function(err,out){m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,networks:parsedNetworks(out)});});
   });
 });
