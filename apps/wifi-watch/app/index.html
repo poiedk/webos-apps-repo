@@ -79,6 +79,15 @@
     <div id="networkActions" class="list"></div>
     <div class="pageHelp">UP/DOWN: select &nbsp; OK: action &nbsp; BACK: networks</div>
   </section>
+  <section id="passwordScreen" class="screen page">
+    <div class="pageTitle">Connect to Wi-Fi</div>
+    <div id="passwordSsid" class="networkNotice"></div>
+    <label class="passwordLabel" for="networkPassword">Wi-Fi password (WPA/WPA2)</label>
+    <input id="networkPassword" type="password" maxlength="63" autocomplete="off" placeholder="Press OK to enter password">
+    <div id="passwordNotice" class="networkNotice">Use the TV's on-screen keyboard, then press Connect.</div>
+    <div id="passwordActions" class="list"><div class="row focus"><div class="rowText"><div class="rowTitle">Enter password</div></div></div><div class="row"><div class="rowText"><div class="rowTitle">Connect and save</div></div></div><div class="row"><div class="rowText"><div class="rowTitle">Cancel</div></div></div></div>
+    <div class="pageHelp">UP/DOWN: select &nbsp; OK: action &nbsp; BACK: network details</div>
+  </section>
   <section id="diagnosticsScreen" class="screen page">
     <div class="pageTitle">Diagnostics & History</div>
     <pre id="diag">Loading diagnostics...</pre>
