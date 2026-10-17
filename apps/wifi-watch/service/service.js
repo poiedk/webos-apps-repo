@@ -516,7 +516,8 @@ service.register('networkAction',function(m){
       m.respond({returnValue:false,errorText:'Invalid network or action'});return;
     }
     // Never delete a network while it is the active one.
-    var cmd='ACTIVE="$(connmanctl services | awk \'/^\\*A/ {for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {print $i;exit}}\')"; '+
+    var cmd='ACTIVE="$(connmanctl services | grep "^\\*A" | head -n 1)"; '+
+      'ACTIVE="${ACTIVE##* }"; '+
       'if [ "$ACTIVE" = '+shellQuote(id)+' ] && [ '+shellQuote(action)+' = forget ]; then echo "BLOCKED_ACTIVE"; exit 0; fi; '+
       'connmanctl '+(action==='forget'?'remove':action)+' '+shellQuote(id)+' 2>&1';
     rootExec(cmd,function(err,out){
