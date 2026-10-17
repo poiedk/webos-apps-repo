@@ -242,7 +242,7 @@
     if(action.id==='back'){setScreen('networks');return;}
     if(action.id==='password'){openPassword();return;}
     if(!selectedNetwork||busy)return;
-    if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? Only ConnMan profiles can be removed. You may need the Wi-Fi password again.'))return;
+    if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? You may need the password again.'))return;
     if(action.id==='disconnect'&&!window.confirm('Disconnect '+selectedNetwork.name+'? Remote access may be lost.'))return;
     busy=true;
     document.getElementById('netDetailInfo').textContent='Working...';
@@ -350,6 +350,7 @@
       if(screen==='advanced')setScreen('settings');
       else if(screen==='networkDetail')setScreen('networks');
       else if(screen==='password'){document.getElementById('networkPassword').value='';setScreen('networkDetail');}
+      else if(screen==='networks')setScreen('home');
       else if(screen==='settings'||screen==='diagnostics')setScreen('home');
       ev.preventDefault();return;
     }
