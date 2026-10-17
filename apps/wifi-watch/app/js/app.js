@@ -211,7 +211,14 @@
     networks.forEach(function(n,i){
       html+='<div class="row '+(focus===i+1?'focus':'')+'"><div class="rowText"><div class="rowTitle">'+esc(n.name||'(Hidden)')+'</div><div class="rowHint">'+esc(n.saved?'Stored profile':'Visible service')+'</div></div><div class="rowValue">'+esc(n.connected?'CONNECTED':(n.favorite?'SAVED':''))+'</div></div>';
     });
-    document.getElementById('networksList').innerHTML=html;
+    var list=document.getElementById('networksList');
+    list.innerHTML=html;
+    var active=list.children[focus];
+    if(active){
+      var box=list.getBoundingClientRect(),row=active.getBoundingClientRect();
+      if(row.bottom>box.bottom)list.scrollTop+=row.bottom-box.bottom+6;
+      else if(row.top<box.top)list.scrollTop-=box.top-row.top+6;
+    }
   }
   function openNetwork(n){
     if(!n)return;
