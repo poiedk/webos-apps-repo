@@ -500,7 +500,12 @@ service.register('listNetworks',function(m){
       'name="$(sed -n "s/^Name=//p" "$f" | head -n 1 | tr "\\r\\n| " "   ")"; '+
       'fav="$(sed -n "s/^Favorite=//p" "$f" | head -n 1)"; '+
       'printf "PROFILE|%s|%s\\nDETAIL|%s|%s\\n" "$id" "$name" "$id" "$fav"; done; '+
-      'connmanctl services | awk \'{for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {id=$i; name=""; for(j=2;j<i;j++)name = name " " $j; printf "SERVICE|%s|%d|%s\\n",id, ($1 ~ /^\\*A/),name; break}}\'';
+      'connmanctl services | while IFS= read -r line; do '+
+      'case "$line" in *wifi_*_managed_*) ;; *) continue ;; esac; '+
+      'id="${line##* }"; case "$id" in wifi_*_managed_*) ;; *) continue ;; esac; '+
+      'prefix="${line%$id}"; case "$prefix" in \\*A*) connected=1 ;; *) connected=0 ;; esac; '+
+      'name="$(printf "%s" "$prefix" | sed "s/^[*AORF[:space:]]*//; s/[[:space:]]*$//")"; '+
+      'printf "SERVICE|%s|%s|%s\\n" "$id" "$connected" "$name"; done';
     rootExec(cmd,function(err,out){m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,networks:parsedNetworks(out)});});
   });
 });
