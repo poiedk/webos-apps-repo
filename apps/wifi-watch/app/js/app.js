@@ -368,7 +368,11 @@
     }
 
     if(screen==='networks'||screen==='networkDetail'||screen==='password'){
-      if(screen==='password'&&document.activeElement===document.getElementById('networkPassword'))return;
+      if(screen==='password'&&document.activeElement===document.getElementById('networkPassword')){
+        if(code===40||code===13){document.getElementById('networkPassword').blur();focus=1;renderFocus();ev.preventDefault();}
+        else if(code===461||code===27){document.getElementById('networkPassword').blur();focus=1;renderFocus();ev.preventDefault();}
+        return;
+      }
       max=screen==='networks'?networks.length+1:(screen==='password'?3:netActions.length);
       if(code===38){focus=(focus-1+max)%max;renderFocus();ev.preventDefault();}
       else if(code===40){focus=(focus+1)%max;renderFocus();ev.preventDefault();}
@@ -384,6 +388,20 @@
     }else if(code===13){activate();ev.preventDefault();}
   });
 
+  var passwordField=document.getElementById('networkPassword');
+  passwordField.addEventListener('blur',function(){
+    if(screen==='password'){
+      focus=1;
+      setTimeout(renderFocus,0);
+    }
+  });
+  passwordField.addEventListener('change',function(){
+    if(screen==='password'){
+      passwordField.blur();
+      focus=1;
+      renderFocus();
+    }
+  });
   setInterval(function(){
     var d=new Date(),h=d.getHours(),m=d.getMinutes();
     document.getElementById('clock').textContent=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;
