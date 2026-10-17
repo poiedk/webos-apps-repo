@@ -13,7 +13,7 @@
       <div class="title">WiFi Watch</div>
       <div class="subtitle">Background watchdog and safe Wi-Fi recovery</div>
     </div>
-    <div class="version">v0.3.10</div>
+    <div class="version">v0.3.11 preview</div>
   </div>
 
   <section id="home" class="screen active home">
@@ -58,6 +58,7 @@
     <div class="actions">
       <div class="action focus"><div id="fixAction" class="actionTitle">Fix now</div></div>
       <div class="action"><div id="autoFixAction" class="actionTitle">Auto Fix OFF</div></div>
+      <div class="action"><div class="actionTitle">Networks</div></div>
       <div class="action"><div class="actionTitle">Diagnostics</div></div>
       <div class="action"><div class="actionTitle">Settings</div></div>
       <div class="action last"><div class="actionTitle">Exit</div></div>
@@ -66,6 +67,27 @@
     <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span id="clock"></span></div>
   </section>
 
+  <section id="networksScreen" class="screen page">
+    <div class="pageTitle">Wi-Fi Networks</div>
+    <div id="netNotice" class="networkNotice">Press OK on Refresh to scan.</div>
+    <div id="networksList" class="list"></div>
+    <div class="pageHelp">UP/DOWN: select &nbsp; OK: details / action &nbsp; BACK: home. No passwords are shown.</div>
+  </section>
+  <section id="networkDetailScreen" class="screen page">
+    <div class="pageTitle" id="netDetailTitle">Network</div>
+    <div id="netDetailInfo" class="networkNotice"></div>
+    <div id="networkActions" class="list"></div>
+    <div class="pageHelp">UP/DOWN: select &nbsp; OK: action &nbsp; BACK: networks</div>
+  </section>
+  <section id="passwordScreen" class="screen page">
+    <div class="pageTitle">Connect to Wi-Fi</div>
+    <div id="passwordSsid" class="networkNotice"></div>
+    <label class="passwordLabel" for="networkPassword">Wi-Fi password (WPA/WPA2)</label>
+    <input id="networkPassword" type="password" maxlength="63" autocomplete="off" placeholder="Press OK to enter password">
+    <div id="passwordNotice" class="networkNotice">Use the TV's on-screen keyboard, then press Connect.</div>
+    <div id="passwordActions" class="list"><div class="row focus"><div class="rowText"><div class="rowTitle">Enter password</div></div></div><div class="row"><div class="rowText"><div class="rowTitle">Connect and save</div></div></div><div class="row"><div class="rowText"><div class="rowTitle">Cancel</div></div></div></div>
+    <div class="pageHelp">UP/DOWN: select &nbsp; OK: action &nbsp; BACK: network details</div>
+  </section>
   <section id="diagnosticsScreen" class="screen page">
     <div class="pageTitle">Diagnostics & History</div>
     <pre id="diag">Loading diagnostics...</pre>

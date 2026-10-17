@@ -191,7 +191,7 @@ function buildProbeCommand(){
 }
 
 function causeFor(data,ok){
-  if(data.OPER!=='up')return 'Wi-Fi interface is '+(data.OPER||'down');
+  if(data.OPER!=='up'&&data.OPER!=='dormant'&&!data.IP)return 'Wi-Fi interface is '+(data.OPER||'down');
   if(!data.IP)return 'No IP address';
   if(!data.GW)return 'No default gateway';
   if(!ok)return 'Gateway unreachable';
@@ -245,9 +245,7 @@ function canRecover(source){
 }
 
 function recoveryCommand(level){
-  var findSvc='SVC="$(connmanctl services 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; '+
-    'if [ -z "$SVC" ]; then connmanctl scan wifi >/dev/null 2>&1 || true; sleep 2; '+
-      'SVC="$(connmanctl services 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; fi; ';
+  var findSvc='SVC="$(connmanctl services 2>/dev/null | awk \'/^\\*A/ {for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; ';
   var reconnect=findSvc+
     'if [ -n "$SVC" ]; then connmanctl disconnect "$SVC" >/dev/null 2>&1 || true; sleep 2; '+
       'connmanctl connect "$SVC" >/dev/null 2>&1 || true; fi; sleep 7';
@@ -311,6 +309,11 @@ function autoFixGraceRemaining(){
 
 function maybeAutoRecover(r){
   if(!cfg.autoFix||recoveryInProgress)return;
+  // Safe by default: no automatic changes during SSID switching or without a stable service.
+  if(!r.ssid||r.ssid==='--'||!r.ip||r.connman!=='connected')return;
+  if(r.cause==='Wi-Fi interface is dormant')return;
+  // Gateway-only devices may intentionally refuse ICMP; never auto-reset those links.
+  if(r.cause==='Gateway unreachable')return;
   if(autoFixGraceRemaining()>0)return;
   if(r.state!=='Problem'&&r.state!=='Offline')return;
   runRecovery('quick','auto',r.cause,function(){});
@@ -366,7 +369,7 @@ function finishCollect(err,data,suppressAuto){
   cause=causeFor(data,ok);
   if(ok)state='Connected';
   else if(failures>=cfg.failureThreshold){
-    state=(data.OPER!=='up'||!data.IP)?'Offline':'Problem';
+    state=(!data.IP)?'Offline':'Problem';
   }else{
     state='Degraded';
   }
@@ -469,6 +472,70 @@ function diagnosticsText(cb){
       '\n\n=== LOCAL LOG ===\n'+local);
   });
 }
+
+
+/* Network management: fixed ConnMan IDs only; never log credentials. */
+function networkId(id){return /^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)$/.test(String(id||''));}
+function parsedNetworks(output){
+  var items={},lines=String(output||'').split(/\r?\n/),v,id;
+  lines.forEach(function(line){
+    if(line.indexOf('PROFILE|')===0){
+      v=line.split('|');id=v[1];if(!networkId(id))return;
+      items[id]={id:id,name:v.slice(2).join('|'),saved:true,visible:false,connected:false,favorite:false};
+    }else if(line.indexOf('DETAIL|')===0){
+      v=line.split('|');id=v[1];if(!items[id])return;
+      items[id].favorite=v[2]==='true';
+    }else if(line.indexOf('SERVICE|')===0){
+      v=line.split('|');id=v[1];if(!networkId(id))return;
+      if(!items[id])items[id]={id:id,name:v.slice(3).join('|'),saved:false,favorite:false};
+      items[id].visible=true;items[id].connected=v[2]==='1';
+    }
+  });
+  return Object.keys(items).map(function(k){return items[k];}).sort(function(a,b){return (b.connected?1:0)-(a.connected?1:0)||a.name.localeCompare(b.name);});
+}
+service.register('listNetworks',function(m){
+  ensureConfigLoaded(function(){
+    var cmd='for f in /var/lib/connman/wifi_*/settings; do [ -f "$f" ] || continue; '+
+      'id="${f%/settings}"; id="${id##*/}"; '+
+      'name="$(sed -n "s/^Name=//p" "$f" | head -n 1 | tr "\\r\\n| " "   ")"; '+
+      'fav="$(sed -n "s/^Favorite=//p" "$f" | head -n 1)"; '+
+      'printf "PROFILE|%s|%s\\nDETAIL|%s|%s\\n" "$id" "$name" "$id" "$fav"; done; '+
+      'connmanctl services | awk \'{for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {id=$i; name=""; for(j=2;j<i;j++)name=name (name?" ":"") $j; printf "SERVICE|%s|%d|%s\\n",id, ($1 ~ /^\\*A/),name; break}}\'';
+    rootExec(cmd,function(err,out){m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,networks:parsedNetworks(out)});});
+  });
+});
+service.register('networkAction',function(m){
+  ensureConfigLoaded(function(){
+    var p=m.payload||{},id=p.id,action=p.action;
+    if(!networkId(id)||['forget','connect','disconnect'].indexOf(action)<0){
+      m.respond({returnValue:false,errorText:'Invalid network or action'});return;
+    }
+    // Never delete a network while it is the active one.
+    var cmd='ACTIVE="$(connmanctl services | awk \'/^\\*A/ {for(i=1;i<=NF;i++)if($i ~ /^wifi_/) {print $i;exit}}\')"; '+
+      'if [ "$ACTIVE" = '+shellQuote(id)+' ] && [ '+shellQuote(action)+' = forget ]; then echo "BLOCKED_ACTIVE"; exit 0; fi; '+
+      'connmanctl '+(action==='forget'?'remove':action)+' '+shellQuote(id)+' 2>&1';
+    rootExec(cmd,function(err,out){
+      m.respond({returnValue:true,success:!err&&!/Error|Failed|BLOCKED_ACTIVE|not found|not supported|invalid/i.test(out||''),message:err?String(err):String(out||'Completed').slice(0,300)});
+    });
+  });
+});
+
+
+service.register('connectWithPassword',function(m){
+  ensureConfigLoaded(function(){
+    var p=m.payload||{},ssid=p.ssid,pass=p.password;
+    if(typeof ssid!=='string'||!ssid||ssid.length>128||typeof pass!=='string'||pass.length<8||pass.length>63){
+      m.respond({returnValue:false,errorText:'SSID or WPA2 password length invalid'});return;
+    }
+    // Luna connect is used rather than echoing credentials into a shell or storing them in our files.
+    service.call('luna://com.webos.service.wifi/connect',{
+      ssid:ssid,storeProfile:true,security:{securityType:'psk',simpleSecurity:{passKey:pass}}
+    },function(reply){
+      var r=reply&&reply.payload||{};
+      m.respond({returnValue:true,success:r.returnValue===true,message:r.returnValue===true?'Connected and profile requested':String(r.errorText||'Connection rejected')});
+    });
+  });
+});
 
 service.register('boot',function(m){
   ensureConfigLoaded(function(){
