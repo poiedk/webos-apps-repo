@@ -1,15 +1,15 @@
 {
   "id": "org.webosbrew.wifiwatch",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "type": "web",
   "title": "WiFi Watch",
   "appDescription": "Background Wi-Fi watchdog, diagnostics and safe recovery",
-  "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/2136fc973568e02e2101b22ed342dc2799932ea6/apps/wifi-watch/app/catalog-icon.png",
+  "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/d94be4669ae8456c7b0da0e12fa6e3ad3fd28120/apps/wifi-watch/app/catalog-icon.png",
   "sourceUrl": "https://github.com/poiedk/webos-apps-repo/tree/main/apps/wifi-watch",
   "rootRequired": true,
-  "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/org.webosbrew.wifiwatch_0.3.13_all.ipk",
+  "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/packages/org.webosbrew.wifiwatch_0.3.14_all.ipk",
   "ipkHash": {
-    "sha256": "b9e95c2fad5054ef0ba0d048ad13780be2273f6db697219820bf06c9f1a309f4"
+    "sha256": "74a26b677120f2d8fa41e9703ec467d4d844f25d8c967b2d768814bc2c9c9406"
   },
-  "ipkSize": 42562
+  "ipkSize": 42742
 }
