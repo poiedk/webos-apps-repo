@@ -29,3 +29,5 @@ pre{height:505px;margin:0;background:#081722;border:1px solid #1b4562;padding:15
 
 .networkNotice{font-size:20px;color:#b5ccdb;margin:14px 0 20px;min-height:30px;overflow-wrap:anywhere}
 #networksList,#networkActions{max-height:540px;overflow:hidden}
+
+.passwordLabel{font-size:24px;color:#b5ccdb;display:block;margin:20px 0 10px}#networkPassword{height:65px;width:90%;font-size:30px;background:#102b40;color:white;border:2px solid #26c6ff;padding:10px 18px;margin-bottom:16px}
