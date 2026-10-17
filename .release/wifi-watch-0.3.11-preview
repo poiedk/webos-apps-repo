@@ -1,0 +1,1 @@
+Preview release request for WiFi Watch 0.3.11. Publish to Homebrew catalog only if package checks succeed. Existing 0.3.10 package stays available for rollback.
