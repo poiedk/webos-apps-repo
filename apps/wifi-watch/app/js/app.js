@@ -249,6 +249,39 @@
     });
   }
 
+
+  function openPassword(){
+    setScreen('password');
+    document.getElementById('passwordSsid').textContent=selectedNetwork.name;
+    document.getElementById('networkPassword').value='';
+    document.getElementById('passwordNotice').textContent='Select Enter password to open the TV keyboard.';
+  }
+  function renderPasswordFocus(){
+    var rows=document.querySelectorAll('#passwordActions .row');
+    for(var i=0;i<rows.length;i++)rows[i].className='row'+(i===focus?' focus':'');
+  }
+  function submitPassword(){
+    var input=document.getElementById('networkPassword');
+    var pass=input.value;
+    if(busy)return;
+    if(pass.length<8||pass.length>63){
+      document.getElementById('passwordNotice').textContent='WPA password must be 8 to 63 characters.';
+      return;
+    }
+    input.value='';
+    busy=true;
+    document.getElementById('passwordNotice').textContent='Connecting...';
+    call('connectWithPassword',{ssid:selectedNetwork.name,password:pass},function(err,result){
+      busy=false;
+      pass='';
+      if(err||!result.success){
+        document.getElementById('passwordNotice').textContent=String(err&&(err.errorText||err.message)||result&&result.message||'Connection failed');
+      }else{
+        setTimeout(loadNetworks,2000);
+      }
+    });
+  }
+
   function exitApp(){
     if(busy)return;
     document.getElementById('state').textContent='Closing WiFi Watch...';
