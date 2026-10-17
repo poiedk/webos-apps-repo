@@ -1,0 +1,1 @@
+Remote double-OK confirmation replaces unsupported window.confirm, keeps active profile protection.
