@@ -520,6 +520,23 @@ service.register('networkAction',function(m){
   });
 });
 
+
+service.register('connectWithPassword',function(m){
+  ensureConfigLoaded(function(){
+    var p=m.payload||{},ssid=p.ssid,pass=p.password;
+    if(typeof ssid!=='string'||!ssid||ssid.length>128||typeof pass!=='string'||pass.length<8||pass.length>63){
+      m.respond({returnValue:false,errorText:'SSID or WPA2 password length invalid'});return;
+    }
+    // Luna connect is used rather than echoing credentials into a shell or storing them in our files.
+    service.call('luna://com.webos.service.wifi/connect',{
+      ssid:ssid,storeProfile:true,security:{securityType:'psk',simpleSecurity:{passKey:pass}}
+    },function(reply){
+      var r=reply&&reply.payload||{};
+      m.respond({returnValue:true,success:r.returnValue===true,message:r.returnValue===true?'Connected and profile requested':String(r.errorText||'Connection rejected')});
+    });
+  });
+});
+
 service.register('boot',function(m){
   ensureConfigLoaded(function(){
     resetSessionStats('boot');
