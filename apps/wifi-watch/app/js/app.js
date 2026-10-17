@@ -222,7 +222,7 @@
     if(n.visible&&!n.connected)netActions.push({id:'connect',label:'Connect (saved credentials only)'});
     if(n.id.indexOf('_managed_psk')>=0)netActions.push({id:'password',label:'Enter password and save'});
     if(n.visible&&n.connected)netActions.push({id:'disconnect',label:'Disconnect'});
-    if(n.favorite)netActions.push({id:'forget',label:'Forget saved network',danger:true});
+    if(n.saved)netActions.push({id:'forget',label:'Forget network via ConnMan',danger:true});
     netActions.push({id:'back',label:'Back to networks'});
     setScreen('networkDetail');
   }
@@ -235,7 +235,7 @@
     if(action.id==='back'){setScreen('networks');return;}
     if(action.id==='password'){openPassword();return;}
     if(!selectedNetwork||busy)return;
-    if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? You may need the Wi-Fi password again.'))return;
+    if(action.id==='forget'&&!window.confirm('Forget '+selectedNetwork.name+'? Only ConnMan profiles can be removed. You may need the Wi-Fi password again.'))return;
     if(action.id==='disconnect'&&!window.confirm('Disconnect '+selectedNetwork.name+'? Remote access may be lost.'))return;
     busy=true;
     document.getElementById('netDetailInfo').textContent='Working...';
