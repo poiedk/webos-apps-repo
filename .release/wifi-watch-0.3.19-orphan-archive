@@ -1,0 +1,1 @@
+Safely move stale inactive ConnMan profiles to root-only backup, with remote double-OK confirmation.
