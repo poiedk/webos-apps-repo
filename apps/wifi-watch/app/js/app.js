@@ -230,7 +230,8 @@
     if(n.visible&&!n.connected)netActions.push({id:'connect',label:'Connect (saved credentials only)'});
     if(n.id.indexOf('_managed_psk')>=0)netActions.push({id:'password',label:'Enter password and save'});
     if(n.visible&&n.connected)netActions.push({id:'disconnect',label:'Disconnect'});
-    if(n.saved)netActions.push({id:'forget',label:'Forget network via ConnMan',danger:true});
+    if(n.saved&&n.visible)netActions.push({id:'forget',label:'Forget network via ConnMan',danger:true});
+    if(n.saved&&!n.visible)netActions.push({id:'archiveOrphan',label:'Archive stale profile (backup)',danger:true});
     netActions.push({id:'back',label:'Back to networks'});
     setScreen('networkDetail');
   }
@@ -243,7 +244,7 @@
     if(action.id==='back'){pendingNetworkAction=null;setScreen('networks');return;}
     if(action.id==='password'){pendingNetworkAction=null;openPassword();return;}
     if(!selectedNetwork||busy)return;
-    if(action.id==='forget'||action.id==='disconnect'){
+    if(action.id==='forget'||action.id==='disconnect'||action.id==='archiveOrphan'){
       if(pendingNetworkAction!==action.id){
         pendingNetworkAction=action.id;
         document.getElementById('netDetailInfo').textContent=
@@ -255,7 +256,8 @@
     pendingNetworkAction=null;
     busy=true;
     document.getElementById('netDetailInfo').textContent='Working...';
-    call('networkAction',{action:action.id,id:selectedNetwork.id},function(e,r){
+    call(action.id==='archiveOrphan'?'archiveOrphanProfile':'networkAction',
+      action.id==='archiveOrphan'?{id:selectedNetwork.id}:{action:action.id,id:selectedNetwork.id},function(e,r){
       busy=false;
       if(e||!r.success){
         document.getElementById('netDetailInfo').textContent='Action failed: '+String(e&&(e.errorText||e.message)||r&&r.message||'Unknown error');
