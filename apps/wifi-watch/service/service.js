@@ -509,6 +509,33 @@ service.register('listNetworks',function(m){
     rootExec(cmd,function(err,out){m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,networks:parsedNetworks(out)});});
   });
 });
+// Orphan profiles are on disk but absent from ConnMan's currently advertised services.
+// Move (never delete) an inactive profile to a root-only backup directory.
+service.register('archiveOrphanProfile',function(m){
+  ensureConfigLoaded(function(){
+    var id=m.payload&&m.payload.id;
+    if(!networkId(id)){
+      m.respond({returnValue:false,success:false,message:'Invalid profile ID'});return;
+    }
+    var q=shellQuote(id);
+    var cmd='ID='+q+'; '+
+      'SRC="/var/lib/connman/$ID"; '+
+      'BACKUP="/home/root/.config/wifi-watch-profile-backups"; '+
+      'if [ ! -d "$SRC" ] || [ ! -f "$SRC/settings" ]; then echo "PROFILE_NOT_FOUND"; exit 0; fi; '+
+      'ACTIVE="$(connmanctl services | grep "^\\*A" | head -n 1)"; ACTIVE="${ACTIVE##* }"; '+
+      'if [ "$ACTIVE" = "$ID" ]; then echo "BLOCKED_ACTIVE"; exit 0; fi; '+
+      'if connmanctl services | grep -F "$ID" >/dev/null 2>&1; then echo "BLOCKED_LISTED_SERVICE"; exit 0; fi; '+
+      'mkdir -p "$BACKUP" || exit 2; chmod 700 "$BACKUP" || exit 2; '+
+      'STAMP="$(date +%Y%m%d-%H%M%S)"; DST="$BACKUP/$ID-$STAMP-$"; '+
+      'mv "$SRC" "$DST" || exit 2; chmod 700 "$DST" || exit 2; echo "ARCHIVED"';
+    rootExec(cmd,function(err,out){
+      var result=String(out||'').trim();
+      m.respond({returnValue:true,success:!err&&result==='ARCHIVED',
+        message:err?String(err):result==='ARCHIVED'?'Profile moved to secure backup':result.slice(0,160)});
+    });
+  });
+});
+
 service.register('networkAction',function(m){
   ensureConfigLoaded(function(){
     var p=m.payload||{},id=p.id,action=p.action;
