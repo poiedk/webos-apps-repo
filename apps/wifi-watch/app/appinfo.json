@@ -1,6 +1,6 @@
 {
   "id": "org.webosbrew.wifiwatch",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
