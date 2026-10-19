@@ -605,7 +605,26 @@ service.register('listProfileBackups',function(m){
 service.register('restoreNetworkProfile',function(m){
   ensureConfigLoaded(function(){
     var p=m.payload||{},id=p.id,name=p.backup;
-    if(!networkId(id)||typeof name!=='string'||!new RegExp('^'+id.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\service.register('boot',function(m){')+'-[0-9]{8}-[0-9]{6}\\\\.snapshot
+    if(!networkId(id)||typeof name!=='string'||!/^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)-[0-9]{8}-[0-9]{6}\.snapshot$/.test(name)||name.indexOf(id+'-')!==0){
+      m.respond({returnValue:false,errorText:'Invalid snapshot selection'});return;
+    }
+    var cmd='ID='+shellQuote(id)+'; NAME='+shellQuote(name)+'; '+
+      'SOURCE="/home/root/.config/wifi-watch-profile-backups/$NAME"; TARGET="/var/lib/connman/$ID"; '+
+      'ACTIVE="$(connmanctl services | grep "^\\*A" | head -n 1)"; ACTIVE="${ACTIVE##* }"; '+
+      'if [ "$ACTIVE" = "$ID" ]; then echo ACTIVE_BLOCKED; exit 0; fi; '+
+      '[ -f "$SOURCE/settings" ] || { echo MISSING; exit 0; }; '+
+      'umask 077; mkdir -p "$TARGET" || exit 1; '+
+      'cp -p "$SOURCE/settings" "$TARGET/settings" || exit 1; '+
+      'if [ -f "$SOURCE/data" ]; then cp -p "$SOURCE/data" "$TARGET/data" || exit 1; fi; '+
+      'chmod 700 "$TARGET"; chmod 600 "$TARGET/settings"; echo RESTORED';
+    rootExec(cmd,function(err,out){
+      var result=String(out||'').trim();
+      m.respond({returnValue:true,success:!err&&result==='RESTORED',
+        message:result==='RESTORED'?'Profile restored on disk; reconnect explicitly':result==='ACTIVE_BLOCKED'?'Cannot overwrite active Wi-Fi profile':err?String(err):result});
+    });
+  });
+});
+service.register('boot',function(m){')+'-[0-9]{8}-[0-9]{6}\\\\.snapshot
   ensureConfigLoaded(function(){
     resetSessionStats('boot');
     updateBootHook(function(){});
