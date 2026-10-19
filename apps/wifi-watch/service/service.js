@@ -597,7 +597,7 @@ service.register('listProfileBackups',function(m){
     var cmd='for d in /home/root/.config/wifi-watch-profile-backups/*.snapshot; do '+
       '[ -f "$d/settings" ] || continue; name="${d##*/}"; printf "%s\\n" "$name"; done';
     rootExec(cmd,function(err,out){
-      var backups=String(out||'').split(/\\r?\\n/).filter(function(x){return /^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)-[0-9]{8}-[0-9]{6}\\.snapshot$/.test(x);});
+      var backups=String(out||'').split(/\r?\n/).filter(function(x){return /^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)-[0-9]{8}-[0-9]{6}\.snapshot$/.test(x);});
       m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,backups:backups});
     });
   });
