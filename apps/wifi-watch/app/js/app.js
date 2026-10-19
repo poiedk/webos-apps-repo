@@ -231,6 +231,7 @@
     if(n.id.indexOf('_managed_psk')>=0)netActions.push({id:'password',label:'Enter password and save'});
     if(n.visible&&n.connected)netActions.push({id:'disconnect',label:'Disconnect'});
     if(n.saved)netActions.push({id:'backup',label:'Back up saved profile (root-only)'});
+    if(n.saved&&!n.connected)netActions.push({id:'restore',label:'Restore latest profile backup',danger:true});
     if(n.saved&&n.visible)netActions.push({id:'forget',label:'Forget network via ConnMan',danger:true});
     if(n.saved&&!n.visible)netActions.push({id:'archiveOrphan',label:'Archive stale profile (backup)',danger:true});
     netActions.push({id:'back',label:'Back to networks'});
@@ -244,6 +245,24 @@
   function networkAction(action){
     if(action.id==='back'){pendingNetworkAction=null;setScreen('networks');return;}
     if(action.id==='password'){pendingNetworkAction=null;openPassword();return;}
+    if(action.id==='restore'){
+      if(!selectedNetwork||busy)return;
+      if(pendingNetworkAction!=='restore'){
+        pendingNetworkAction='restore';
+        document.getElementById('netDetailInfo').textContent='Press OK again to restore the latest saved snapshot for '+selectedNetwork.name+'. This overwrites an inactive profile.';
+        return;
+      }
+      pendingNetworkAction=null;busy=true;
+      call('listProfileBackups',{},function(e,r){
+        var matches=(r&&r.backups||[]).filter(function(name){return name.indexOf(selectedNetwork.id+'-')===0;}).sort();
+        if(e||!matches.length){busy=false;document.getElementById('netDetailInfo').textContent='No saved snapshots for this network';return;}
+        var backup=matches[matches.length-1];
+        call('restoreNetworkProfile',{id:selectedNetwork.id,backup:backup},function(err,result){
+          busy=false;
+          document.getElementById('netDetailInfo').textContent=err?'Restore failed: '+String(err.errorText||err.message||err):(result&&result.message)||'Restore failed';
+        });
+      });return;
+    }
     if(action.id==='backup'){
       if(!selectedNetwork||busy)return;
       busy=true;
