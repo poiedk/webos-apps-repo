@@ -1,0 +1,87 @@
+name: Publish preview Homebrew catalog
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/preview-catalog.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: preview-catalog
+  cancel-in-progress: false
+jobs:
+  preview:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g @webos-tools/cli
+      - name: Package isolated preview versions
+        run: |
+          set -eu
+          mkdir -p /tmp/preview-src preview-packages
+          git fetch origin feature/custom-home-webos3 feature/wifi-wled-bluetooth-20261019
+          for app in custom-home wifi-watch wled-fix bluetooth-manager; do
+            case "$app" in
+              custom-home) branch=feature/custom-home-webos3 ;;
+              *) branch=feature/wifi-wled-bluetooth-20261019 ;;
+            esac
+            mkdir -p "/tmp/preview-src/$app"
+            git archive "origin/$branch" "apps/$app" | tar -x -C "/tmp/preview-src/$app"
+            cd "/tmp/preview-src/$app/apps/$app"
+            if [ "$app" = bluetooth-manager ]; then
+              cp "$GITHUB_WORKSPACE/apps/wifi-watch/app/icon.png" app/icon.png
+              node -e "const fs=require('fs');const p='app/appinfo.json';let x=JSON.parse(fs.readFileSync(p));x.icon='icon.png';fs.writeFileSync(p,JSON.stringify(x,null,2))"
+            fi
+            if [ "$app" = wifi-watch ]; then
+              node --check service/service.js
+              node --check app/js/app.js
+              sh -n service/autostart.sh
+              ares-package --no-minify --outdir "$GITHUB_WORKSPACE/preview-packages" app service
+            else
+              if [ "$app" = wled-fix ]; then sh -n app/wled-auto.sh; fi
+              ares-package --no-minify --outdir "$GITHUB_WORKSPACE/preview-packages" app
+            fi
+            cd "$GITHUB_WORKSPACE"
+          done
+      - name: Create catalog with preview warnings
+        run: |
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          apps={'custom-home':('org.webosbrew.customhome','LG Custom Home (PREVIEW)'),
+                'wifi-watch':('org.webosbrew.wifiwatch','WiFi Watch (PREVIEW)'),
+                'wled-fix':('org.webosbrew.wledfix','WLED Fix (PREVIEW)'),
+                'bluetooth-manager':('org.webosbrew.bluetoothmanager','Bluetooth Manager (EXPERIMENTAL)')}
+          packages=[]
+          for app,(app_id,title) in apps.items():
+              matches=list(Path('preview-packages').glob(app_id+'_*.ipk'))
+              if len(matches)!=1: raise RuntimeError((app,matches))
+              ipk=matches[0]
+              version=ipk.name[len(app_id)+1:-8]
+              info=dict(id=app_id,version=version,type='web',title=title,
+                  appDescription='Manual opt-in preview. May be incomplete; back up settings before installing.',
+                  rootRequired=True,
+                  iconUri='https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/catalog-icon.png',
+                  sourceUrl='https://github.com/poiedk/webos-apps-repo',
+                  ipkUrl='https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/'+ipk.name,
+                  ipkHash={'sha256':hashlib.sha256(ipk.read_bytes()).hexdigest()},ipkSize=ipk.stat().st_size)
+              packages.append(dict(id=app_id,title=title,
+                  shortDescription='Experimental test build — install manually at your own risk.',
+                  iconUri=info['iconUri'],manifest=info))
+          data={'paging':{'page':1,'count':len(packages),'maxPage':1,'itemsTotal':len(packages)},'packages':packages}
+          Path('repo-preview.json').write_text(json.dumps(data,indent=2)+'\n')
+          PY
+      - name: Publish preview packages to main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add preview-packages repo-preview.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'catalog: publish isolated preview IPKs'
+          git pull --rebase origin main
+          git push origin HEAD:main
