@@ -16,10 +16,38 @@ h1{font-size:44px;font-weight:400;margin:0}.clock{font-size:26px;color:#b8c9ea}
 var entries=[],visible=[],position=0,favorites=[],limit=35;
 try{favorites=JSON.parse(localStorage.getItem('customHomeFavorites')||'[]');if(!Array.isArray(favorites))favorites=[];}catch(e){favorites=[];}
 function invoke(method,params,cb){
- try{var bridge=new PalmServiceBridge();bridge.onservicecallback=function(data){
-   try{var result=JSON.parse(data);cb(result);}catch(e){cb({returnValue:false,errorText:'Invalid response'});}
- };bridge.call('luna://com.webos.applicationManager/'+method,JSON.stringify(params||{}));}
- catch(e){cb({returnValue:false,errorText:String(e)});}
+ var done=false;
+ function fallback(reason){
+   if(done)return;done=true;
+   // Legacy webOS 3.x rejects applicationManager calls from ordinary web apps.
+   // Homebrew Channel's existing root exec service can reach the same API.
+   var payload=JSON.stringify(params||{});
+   var command="luna-send -n 1 -f luna://com.webos.applicationManager/"+method+" '"+payload.replace(/'/g,"'\\''")+"'";
+   try{
+     var privileged=new PalmServiceBridge();
+     privileged.onservicecallback=function(data){
+       var outer,out,result;
+       try{
+         outer=JSON.parse(data||'{}');
+         out=outer.stdoutString||'';
+         result=JSON.parse(out);
+         cb(result);
+       }catch(e){cb({returnValue:false,errorText:'Root service failed: '+String((outer&&outer.errorText)||reason||e)});}
+     };
+     privileged.call('luna://org.webosbrew.hbchannel.service/exec',JSON.stringify({command:command}));
+   }catch(e){cb({returnValue:false,errorText:'Root exec unavailable: '+String(e)});}
+ }
+ try{
+   var bridge=new PalmServiceBridge();
+   bridge.onservicecallback=function(data){
+     try{
+       var result=JSON.parse(data);
+       if(result.returnValue===false){fallback(result.errorText||'Access denied');return;}
+       cb(result);
+     }catch(e){fallback('Invalid normal service response');}
+   };
+   bridge.call('luna://com.webos.applicationManager/'+method,JSON.stringify(params||{}));
+ }catch(e){fallback(String(e));}
 }
 function message(t){document.getElementById('message').textContent=t||'';}
 function uniqueFavorite(id){return favorites.indexOf(id)>=0;}
