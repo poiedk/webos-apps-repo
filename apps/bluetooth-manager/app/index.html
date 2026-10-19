@@ -13,12 +13,12 @@ html,body{margin:0;width:100%;height:100%;background:#0c1828;color:#f5faff;font:
 <div class="warning">Legacy webOS compatibility preview. Magic Remote Bluetooth must not be disabled.</div>
 <div id="info" class="info">Select Refresh to inspect trusted devices.</div>
 <div id="rows"></div>
-<div class="footer">UP / DOWN: navigate | OK: select | BACK: exit | No pairing or power toggle in preview</div>
+<div class="footer">UP / DOWN: navigate | OK: select | BACK: exit | Pairing/power toggle blocked pending TV compatibility</div>
 </div>
 <script>
 (function(){
 'use strict';
-var devices=[],rows=[],focus=0,busy=false;
+var devices=[],rows=[],focus=0,busy=false,selected=-1,found=[];
 var addressRe=/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i;
 function setInfo(t){document.getElementById('info').textContent=t;}
 function exec(cmd,cb){
@@ -46,10 +46,14 @@ function luna(endpoint,args,cb){
 function render(){
  var host=document.getElementById('rows');rows=[
   {label:'Refresh trusted devices',kind:'refresh'},
+  {label:'Scan nearby audio devices',kind:'scan'},
   {label:'Connect selected audio device',kind:'connect'},
-  {label:'Disconnect selected audio device',kind:'disconnect'}
+  {label:'Disconnect selected audio device',kind:'disconnect'},
+  {label:'Remove selected trusted audio device (press OK twice)',kind:'remove'},
+  {label:'Refresh device status',kind:'refresh'}
  ];
  for(var i=0;i<devices.length;i++)rows.push({label:(i+1)+'. '+devices[i].name+' — '+devices[i].state,kind:'device',index:i});
+ for(var f=0;f<found.length;f++)rows.push({label:'Nearby: '+found[f].name+' ('+found[f].address+')',kind:'nearby',index:f});
  rows.push({label:'Back / Exit',kind:'exit'});
  if(focus>=rows.length)focus=rows.length-1;
  var html='';for(var j=0;j<rows.length;j++)
@@ -67,15 +71,28 @@ function refresh(){
    render();
  });
 }
-var selected=-1;
+var confirmRemove='';
 function act(){
  var row=rows[focus];if(!row||busy)return;
  if(row.kind==='exit'){window.close();return;}
- if(row.kind==='device'){selected=row.index;setInfo('Selected '+devices[selected].name);return;}
+ if(row.kind==='device'){selected=row.index;confirmRemove='';setInfo('Selected '+devices[selected].name);return;}
+ if(row.kind==='nearby'){setInfo('Discovered '+found[row.index].name+'. Pairing is handled by TV settings until firmware support is verified.');return;}
+ if(row.kind==='scan'){
+   luna('gap/findDevices',{deviceClass:4,seconds:6},function(r){
+     var d=r.device;found=[];
+     if(d&&addressRe.test(d.address||''))found.push({address:d.address,name:String(d.name||'Device')});
+     setInfo(found.length?'Scan returned a device. Refresh/scan again for more.':'Scan started or completed without a device.');render();
+   });return;
+ }
  if(row.kind==='refresh'){refresh();return;}
  if(selected<0||!devices[selected]){setInfo('Select a trusted audio device first.');return;}
  var d=devices[selected];
  if(!addressRe.test(d.address)){setInfo('Invalid Bluetooth address');return;}
+ if(row.kind==='remove'){
+   if(confirmRemove!==d.address){confirmRemove=d.address;setInfo('Press OK again to permanently forget '+d.name);return;}
+   confirmRemove='';
+   luna('gap/removeTrustedDevice',{service:'audio',address:d.address},function(){selected=-1;setInfo('Remove requested; refresh to confirm.');refresh();});return;
+ }
  luna('service/'+row.kind,{service:'audio',address:d.address},function(){
    setInfo(row.kind+' requested for '+d.name+' (asynchronous; refresh to check state).');
    setTimeout(refresh,1200);
