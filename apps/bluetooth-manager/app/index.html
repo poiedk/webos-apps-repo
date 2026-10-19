@@ -34,7 +34,7 @@ function exec(cmd,cb){
 function luna(endpoint,args,cb){
  if(busy)return;busy=true;setInfo('Communicating with Bluetooth service...');
  // Endpoint and all possible argument values come from a local allowlist.
- var cmd='luna-send -n 1 -f luna://com.webos.service.bluetooth/'+endpoint+' '+JSON.stringify(JSON.stringify(args));
+ var cmd='luna-send -n 1 -f luna://com.webos.service.bluetooth/'+endpoint+" '"+JSON.stringify(args)+"'";
  exec(cmd,function(err,out,stderr){busy=false;
    if(err){setInfo('Root service unavailable: '+err.message);return;}
    try{var response=JSON.parse(out.slice(out.indexOf('{')));
