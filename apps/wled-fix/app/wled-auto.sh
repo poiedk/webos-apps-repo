@@ -14,7 +14,7 @@ BACKUP="1"
 KEEP_BACKUPS="3"
 TEST_LEDS="0"
 VERBOSE="0"
-SCAN_BATCH="24"
+SCAN_BATCH="32"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -115,11 +115,14 @@ is_wled(){
   CANDIDATE="$1"
   [ -n "$CANDIDATE" ] || return 1
   INFO=$(wget -T "$TIMEOUT" -qO- "http://$CANDIDATE/json/info" 2>/dev/null) || return 1
-  echo "$INFO" | grep -Eq '"brand"[[:space:]]*:[[:space:]]*"WLED"'
+  echo "$INFO" | grep -Eq '"brand"[[:space:]]*:[[:space:]]*"WLED"' || return 1
+  WLED_INFO="$INFO"
+  return 0
 }
 
 WLED_IP=""
 DISCOVERY=""
+WLED_INFO=""
 
 if [ "$FAST" = "1" ]; then
   case "$OLD" in
@@ -131,6 +134,19 @@ if [ "$FAST" = "1" ]; then
       fi
       ;;
   esac
+
+  # Direct WLED-AP connections usually expose the controller as the gateway.
+  # Try it before walking ARP or scanning up to 254 hosts.
+  if [ -z "$WLED_IP" ]; then
+    GW_FAST=$(route -n 2>/dev/null | awk -v iface="$IFACE" '$1=="0.0.0.0" && $8==iface {print $2; exit}')
+    case "$GW_FAST" in
+      "$NET".*)
+        if [ "$GW_FAST" != "$MYIP" ] && is_wled "$GW_FAST"; then
+          WLED_IP="$GW_FAST"
+          DISCOVERY="gateway"
+        fi ;;
+    esac
+  fi
 
   if [ -z "$WLED_IP" ] && [ -r /proc/net/arp ]; then
     for IP in $(awk -v net="$NET." 'NR>1 && $3=="0x2" && index($1,net)==1 {print $1}' /proc/net/arp 2>/dev/null); do
@@ -192,7 +208,8 @@ fi
 echo "WLED_IP=$WLED_IP"
 echo "DISCOVERY=$DISCOVERY"
 
-WLED_INFO=$(wget -T "$TIMEOUT" -qO- "http://$WLED_IP/json/info" 2>/dev/null) || fail "WLED stopped responding during verification"
+[ -n "$WLED_INFO" ] || WLED_INFO=$(wget -T "$TIMEOUT" -qO- "http://$WLED_IP/json/info" 2>/dev/null)
+[ -n "$WLED_INFO" ] || fail "WLED stopped responding during verification"
 WLED_AP_INFO="0"
 echo "$WLED_INFO" | grep -Eq '"ap"[[:space:]]*:[[:space:]]*true' && WLED_AP_INFO="1"
 
@@ -313,9 +330,9 @@ echo "CONFIG_CHANGED=$CONFIG_CHANGED"
 if [ "$RESTART" = "1" ] && [ "$CONFIG_CHANGED" = "1" ]; then
   echo "RESTARTING_HYPERION=1"
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
-  sleep 2
+  sleep 1
   luna-send -n 1 "luna://$SERVICE/start" '{}' >/dev/null 2>&1
-  sleep 3
+  sleep 1
 else
   echo "RESTARTING_HYPERION=0"
 fi

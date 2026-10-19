@@ -1,0 +1,11 @@
+{
+  "id": "org.webosbrew.bluetoothmanager",
+  "version": "0.1.0",
+  "vendor": "poiedk",
+  "type": "web",
+  "main": "index.html",
+  "title": "Bluetooth Manager (Preview)",
+  "icon": "icon.svg",
+  "appDescription": "Legacy webOS Bluetooth device manager preview (root required)",
+  "disableBackHistoryAPI": true
+}

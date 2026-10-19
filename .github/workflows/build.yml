@@ -1,5 +1,7 @@
 name: Build webOS apps
 on:
+  pull_request:
+    paths: ['apps/**','scripts/**','.github/workflows/**']
   push:
     branches: [main]
     paths: ['apps/**','scripts/**','.github/workflows/**']

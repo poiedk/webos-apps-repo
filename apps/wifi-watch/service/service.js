@@ -570,6 +570,60 @@ service.register('connectWithPassword',function(m){
   });
 });
 
+/* Root-only profile snapshots. Credentials never enter Luna responses or logs.
+ * Restore is intentionally refused for the active profile and does not
+ * restart ConnMan: users must reconnect explicitly after restoration. */
+service.register('backupNetworkProfile',function(m){
+  ensureConfigLoaded(function(){
+    var id=m.payload&&m.payload.id;
+    if(!networkId(id)){m.respond({returnValue:false,errorText:'Invalid profile ID'});return;}
+    var cmd='ID='+shellQuote(id)+'; SOURCE="/var/lib/connman/$ID"; '+
+      'DEST="/home/root/.config/wifi-watch-profile-backups"; '+
+      'if [ ! -f "$SOURCE/settings" ]; then echo MISSING; exit 0; fi; '+
+      'umask 077; mkdir -p "$DEST" || exit 1; chmod 700 "$DEST"; '+
+      'STAMP="$(date +%Y%m%d-%H%M%S)"; '+
+      'TARGET="$DEST/$ID-$STAMP.snapshot"; '+
+      'mkdir "$TARGET" || exit 1; cp -p "$SOURCE/settings" "$TARGET/settings" || exit 1; '+
+      'if [ -f "$SOURCE/data" ]; then cp -p "$SOURCE/data" "$TARGET/data" || exit 1; fi; '+
+      'chmod 700 "$TARGET"; chmod 600 "$TARGET/"*; echo SAVED';
+    rootExec(cmd,function(err,out){
+      var success=!err&&String(out||'').trim()==='SAVED';
+      m.respond({returnValue:true,success:success,message:success?'Profile snapshot saved in root-only directory':'Backup failed or profile missing'});
+    });
+  });
+});
+service.register('listProfileBackups',function(m){
+  ensureConfigLoaded(function(){
+    var cmd='for d in /home/root/.config/wifi-watch-profile-backups/*.snapshot; do '+
+      '[ -f "$d/settings" ] || continue; name="${d##*/}"; printf "%s\\n" "$name"; done';
+    rootExec(cmd,function(err,out){
+      var backups=String(out||'').split(/\r?\n/).filter(function(x){return /^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)-[0-9]{8}-[0-9]{6}\.snapshot$/.test(x);});
+      m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,backups:backups});
+    });
+  });
+});
+service.register('restoreNetworkProfile',function(m){
+  ensureConfigLoaded(function(){
+    var p=m.payload||{},id=p.id,name=p.backup;
+    if(!networkId(id)||typeof name!=='string'||!/^wifi_[0-9a-f]{12}_[0-9a-f]+_managed_(psk|none|ieee8021x|wep)-[0-9]{8}-[0-9]{6}\.snapshot$/.test(name)||name.indexOf(id+'-')!==0){
+      m.respond({returnValue:false,errorText:'Invalid snapshot selection'});return;
+    }
+    var cmd='ID='+shellQuote(id)+'; NAME='+shellQuote(name)+'; '+
+      'SOURCE="/home/root/.config/wifi-watch-profile-backups/$NAME"; TARGET="/var/lib/connman/$ID"; '+
+      'ACTIVE="$(connmanctl services | grep "^\\*A" | head -n 1)"; ACTIVE="${ACTIVE##* }"; '+
+      'if [ "$ACTIVE" = "$ID" ]; then echo ACTIVE_BLOCKED; exit 0; fi; '+
+      '[ -f "$SOURCE/settings" ] || { echo MISSING; exit 0; }; '+
+      'umask 077; mkdir -p "$TARGET" || exit 1; '+
+      'cp -p "$SOURCE/settings" "$TARGET/settings" || exit 1; '+
+      'if [ -f "$SOURCE/data" ]; then cp -p "$SOURCE/data" "$TARGET/data" || exit 1; fi; '+
+      'chmod 700 "$TARGET"; chmod 600 "$TARGET/settings"; echo RESTORED';
+    rootExec(cmd,function(err,out){
+      var result=String(out||'').trim();
+      m.respond({returnValue:true,success:!err&&result==='RESTORED',
+        message:result==='RESTORED'?'Profile restored on disk; reconnect explicitly':result==='ACTIVE_BLOCKED'?'Cannot overwrite active Wi-Fi profile':err?String(err):result});
+    });
+  });
+});
 service.register('boot',function(m){
   ensureConfigLoaded(function(){
     resetSessionStats('boot');
