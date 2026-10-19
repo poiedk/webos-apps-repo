@@ -1,4 +1,5 @@
 name: Publish preview Homebrew catalog
+# Rebuild on demand after preview branch changes.
 on:
   push:
     branches: [main]
