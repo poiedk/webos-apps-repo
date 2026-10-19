@@ -588,7 +588,7 @@ service.register('backupNetworkProfile',function(m){
       'chmod 700 "$TARGET"; chmod 600 "$TARGET/"*; echo SAVED';
     rootExec(cmd,function(err,out){
       var success=!err&&String(out||'').trim()==='SAVED';
-      m.respond({returnValue:true,success:success,message:success?'Encrypted credentials, if present, copied to root-only snapshot':'Backup failed or profile missing'});
+      m.respond({returnValue:true,success:success,message:success?'Profile snapshot saved in root-only directory':'Backup failed or profile missing'});
     });
   });
 });
