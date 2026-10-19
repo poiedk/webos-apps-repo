@@ -1,6 +1,6 @@
 {
   "id": "org.webosbrew.customhome",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",
