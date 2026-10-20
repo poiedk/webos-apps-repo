@@ -25,6 +25,8 @@ jobs:
         run: |
           set -eu
           mkdir -p /tmp/preview-src preview-packages
+          # Keep only fresh builds; previously published IPKs stay in git history.
+          rm -f preview-packages/*.ipk
           git fetch origin feature/custom-home-webos3 feature/wifi-wled-bluetooth-20261019
           for app in custom-home wifi-watch wled-fix bluetooth-manager; do
             case "$app" in
