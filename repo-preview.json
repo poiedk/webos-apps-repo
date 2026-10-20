@@ -13,18 +13,18 @@
       "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/catalog-icon.png",
       "manifest": {
         "id": "org.webosbrew.customhome",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "type": "web",
         "title": "LG Custom Home (PREVIEW)",
         "appDescription": "Manual opt-in preview. May be incomplete; back up settings before installing.",
         "rootRequired": true,
         "iconUri": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/apps/wifi-watch/app/catalog-icon.png",
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo",
-        "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/org.webosbrew.customhome_0.1.0_all.ipk",
+        "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/org.webosbrew.customhome_0.1.1_all.ipk",
         "ipkHash": {
-          "sha256": "2f7759484452e41aa1e7a0986d5bcfbd5077913db80ee26bf6351126f8ab9100"
+          "sha256": "6700fe9fd3347f308cae66cdb02fab1de5ef66dc24e2bcea7a22059660592bab"
         },
-        "ipkSize": 5872
+        "ipkSize": 6276
       }
     },
     {
@@ -43,9 +43,9 @@
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo",
         "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/org.webosbrew.wifiwatch_0.3.20_all.ipk",
         "ipkHash": {
-          "sha256": "77dd4331221ce0a38e8e5439c54a5dea337a3ef1e4bdb4c281dc6bd10ea0bc71"
+          "sha256": "77fc86cf91fc35aced3a945d57c4f334484292b7728276f0835a7b57c3446020"
         },
-        "ipkSize": 44332
+        "ipkSize": 44326
       }
     },
     {
@@ -64,9 +64,9 @@
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo",
         "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/org.webosbrew.wledfix_1.1.22_all.ipk",
         "ipkHash": {
-          "sha256": "9a8afe994489e442d98ba10617f5067a226c64ab2537e8769987cc7821955a00"
+          "sha256": "dfb9be745fca470a526d4d85f0ec290756f63607f6ffb6c34d7a38e202016552"
         },
-        "ipkSize": 43128
+        "ipkSize": 43126
       }
     },
     {
@@ -85,9 +85,9 @@
         "sourceUrl": "https://github.com/poiedk/webos-apps-repo",
         "ipkUrl": "https://raw.githubusercontent.com/poiedk/webos-apps-repo/main/preview-packages/org.webosbrew.bluetoothmanager_0.1.0_all.ipk",
         "ipkHash": {
-          "sha256": "d40d69482c33f1399445052849a8a0e2a7933f53e09fc59e7e843802f3f79940"
+          "sha256": "9e911ed2779d1fc69b19eb55e2512beb684f87ae2052308547cc5c412650d94e"
         },
-        "ipkSize": 6322
+        "ipkSize": 6324
       }
     }
   ]
