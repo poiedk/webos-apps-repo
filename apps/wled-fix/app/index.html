@@ -65,7 +65,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       <div class="title">WLED Fix</div>
       <div class="subtitle">Hyperion and WLED recovery</div>
     </div>
-    <div class="version">v1.2.0</div>
+    <div class="version">v1.2.1</div>
   </div>
 
   <section id="main" class="screen active home">
@@ -104,7 +104,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     </div>
 
     <div id="technical" class="tech"></div>
-    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.2.0</span></div>
+    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.2.1</span></div>
   </section>
 
   <section id="simple" class="screen settingsPage">
@@ -325,7 +325,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     }
 
     if(data.LED_COUNT_NOTE)document.getElementById("stageLine").textContent=data.LED_COUNT_NOTE;
-    else if(data.PICCAP_STATE)document.getElementById("stageLine").textContent="PicCap: "+data.PICCAP_STATE;
+    else if(data.PICCAP_STATE)document.getElementById("stageLine").textContent="PicCap: "+data.PICCAP_STATE+(data.PICCAP_FPS?(" · "+data.PICCAP_FPS+" fps"):"");
     busy=false;render();
     if(settings.autoClose&&result!=="ERROR")setTimeout(exitApp,1600);
   }

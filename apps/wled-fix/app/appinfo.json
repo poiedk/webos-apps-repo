@@ -1,6 +1,6 @@
 {
   "id": "org.webosbrew.wledfix",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "vendor": "poiedk",
   "type": "web",
   "main": "index.html",

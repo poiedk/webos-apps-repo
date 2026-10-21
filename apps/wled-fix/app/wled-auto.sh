@@ -59,21 +59,49 @@ log(){ [ "$VERBOSE" = "1" ] && echo "LOG=$1"; }
 fail(){ echo "STATUS=ERROR"; echo "ERROR=$1"; exit 1; }
 fail_kind(){ echo "STATUS=ERROR"; echo "ERROR_KIND=$1"; echo "ERROR=$2"; exit 1; }
 
+piccap_status(){
+  luna-send -w 3000 -n 1 -f "luna://$PICCAP_SERVICE/status" '{}' 2>/dev/null
+}
 piccap_running(){
+  PST=$(piccap_status)
+  echo "$PST" | grep -Eq '"videoRunning"[[:space:]]*:[[:space:]]*true|"uiRunning"[[:space:]]*:[[:space:]]*true' && return 0
   ps w 2>/dev/null | grep '/org.webosbrew.piccap.service/hyperion-webos' | grep -v grep >/dev/null 2>&1
+}
+piccap_capture_running(){
+  PST=$(piccap_status)
+  echo "$PST" | grep -Eq '"videoRunning"[[:space:]]*:[[:space:]]*true|"uiRunning"[[:space:]]*:[[:space:]]*true'
 }
 capture_input_active(){
   PINFO=$(wget -T 2 -qO- http://127.0.0.1:8090/json-rpc --post-data='{"command":"serverinfo","tan":171}' --header='Content-Type: application/json' 2>/dev/null)
   echo "$PINFO" | tr '\n' ' ' | grep -Eq '"active"[[:space:]]*:[[:space:]]*true[^}]*"priority"[[:space:]]*:[[:space:]]*150|"priority"[[:space:]]*:[[:space:]]*150[^}]*"active"[[:space:]]*:[[:space:]]*true'
 }
+wait_piccap(){
+  n=0
+  while [ "$n" -lt 8 ]; do
+    piccap_capture_running && return 0
+    sleep 1
+    n=$((n+1))
+  done
+  return 1
+}
+start_piccap(){
+  [ "$PICCAP_RECOVERY" = "1" ] || return 1
+  stage "Starting PicCap"
+  luna-send -w 3000 -n 1 -f "luna://$PICCAP_SERVICE/start" '{}' >/dev/null 2>&1 || true
+  wait_piccap
+}
 restart_piccap(){
-  [ "$PICCAP_RECOVERY" = "1" ] || return 0
+  [ "$PICCAP_RECOVERY" = "1" ] || return 1
   stage "Restarting PicCap"
-  luna-send -w 3000 -n 1 "luna://$PICCAP_SERVICE/stop" '{}' >/dev/null 2>&1 || true
+  luna-send -w 3000 -n 1 -f "luna://$PICCAP_SERVICE/stop" '{}' >/dev/null 2>&1 || true
   sleep 1
-  luna-send -w 3000 -n 1 "luna://$PICCAP_SERVICE/start" '{}' >/dev/null 2>&1 || true
-  sleep 3
-  echo "PICCAP_RECOVERY=restarted"
+  luna-send -w 3000 -n 1 -f "luna://$PICCAP_SERVICE/start" '{}' >/dev/null 2>&1 || true
+  if wait_piccap; then
+    echo "PICCAP_RECOVERY=restarted"
+    return 0
+  fi
+  echo "PICCAP_RECOVERY=failed"
+  return 1
 }
 
 stage "Checking prerequisites"
@@ -390,7 +418,7 @@ echo "CONFIG_CHANGED=$CONFIG_CHANGED"
 if [ "$RESTART" = "1" ] && [ "$CONFIG_CHANGED" = "1" ]; then
   echo "RESTARTING_HYPERION=1"
   PICCAP_WAS_RUNNING="0"
-  piccap_running && PICCAP_WAS_RUNNING="1"
+  piccap_capture_running && PICCAP_WAS_RUNNING="1"
   stage "Restarting Hyperion"
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
   sleep 2
@@ -453,7 +481,7 @@ if [ "$VERIFY" = "1" ]; then
     if echo "$ALT" | grep -q '"port":[0-9][0-9]*'; then ALT=$(echo "$ALT" | sed 's/"port":[0-9][0-9]*/"port":'"$ALT_PORT"'/'); else ALT=$(echo "$ALT" | sed 's/"streamProtocol":"'"$ALT_PROTOCOL"'"/"streamProtocol":"'"$ALT_PROTOCOL"'","port":'"$ALT_PORT"'/'); fi
     SQL_ALT=$(printf "%s" "$ALT" | sed "s/'/''/g")
     sqlite3 "$DB" "UPDATE settings SET config='$SQL_ALT',updated_at=datetime('now') WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%';" >/dev/null 2>&1
-    PICCAP_WAS_RUNNING="0"; piccap_running && PICCAP_WAS_RUNNING="1"
+    PICCAP_WAS_RUNNING="0"; piccap_capture_running && PICCAP_WAS_RUNNING="1"
     luna-send -w 3000 -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1 || true
     sleep 1
     luna-send -w 3000 -n 1 "luna://$SERVICE/start" '{}' >/dev/null 2>&1 || true
@@ -471,20 +499,40 @@ if [ "$VERIFY" = "1" ]; then
     fail_kind "REALTIME_FAILED" "Hyperion is configured, but WLED did not enter realtime mode"
   fi
 
-  if [ "$PICCAP_RECOVERY" = "1" ] && piccap_running; then
-    stage "Checking PicCap capture"
+  if [ "$PICCAP_RECOVERY" = "1" ]; then
+    stage "Checking PicCap"
+    if ! piccap_capture_running; then
+      if [ "$ACTION" = "repair" ]; then
+        if start_piccap; then
+          echo "PICCAP_STATE=started"
+        else
+          fail_kind "PICCAP_START_FAILED" "PicCap did not start after repair"
+        fi
+      else
+        fail_kind "PICCAP_STOPPED" "PicCap capture is stopped; run Repair"
+      fi
+    fi
+
     if ! capture_input_active; then
       if [ "$ACTION" = "repair" ]; then
-        restart_piccap
-        capture_input_active && echo "PICCAP_STATE=recovered" || echo "PICCAP_STATE=running-no-input"
+        if restart_piccap; then
+          sleep 1
+          capture_input_active && echo "PICCAP_STATE=recovered" || echo "PICCAP_STATE=running-waiting-input"
+        else
+          fail_kind "PICCAP_RESTART_FAILED" "PicCap could not be restarted"
+        fi
       else
         fail_kind "PICCAP_CAPTURE_MISSING" "PicCap is running but Hyperion has no active capture input; run Repair"
       fi
     else
       echo "PICCAP_STATE=running"
     fi
+
+    PST=$(piccap_status)
+    PICCAP_FPS=$(echo "$PST" | sed -n 's/.*"framerate"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p')
+    [ -n "$PICCAP_FPS" ] && echo "PICCAP_FPS=$PICCAP_FPS"
   else
-    piccap_running && echo "PICCAP_STATE=running" || echo "PICCAP_STATE=stopped"
+    piccap_capture_running && echo "PICCAP_STATE=running" || echo "PICCAP_STATE=unchecked"
   fi
 fi
 
