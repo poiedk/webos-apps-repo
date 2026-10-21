@@ -14,6 +14,12 @@ BACKUP="1"
 KEEP_BACKUPS="3"
 TEST_LEDS="0"
 VERBOSE="0"
+ACTION="repair"
+TARGET_MODE="auto"
+MANUAL_IP=""
+PICCAP_RECOVERY="1"
+STATE="/home/root/.config/wled-fix-controller.state"
+PICCAP_SERVICE="org.webosbrew.piccap.service"
 SCAN_BATCH="24"
 
 while [ "$#" -gt 0 ]; do
@@ -30,20 +36,47 @@ while [ "$#" -gt 0 ]; do
     --keep-backups) KEEP_BACKUPS="$2"; shift 2 ;;
     --test-leds) TEST_LEDS="$2"; shift 2 ;;
     --verbose) VERBOSE="$2"; shift 2 ;;
+    --action) ACTION="$2"; shift 2 ;;
+    --target-mode) TARGET_MODE="$2"; shift 2 ;;
+    --manual-ip) MANUAL_IP="$2"; shift 2 ;;
+    --piccap-recovery) PICCAP_RECOVERY="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 
+stage "Selecting streaming protocol"
 case "$PROTOCOL" in
   auto|AUTO) PROTOCOL="auto" ;;
   ddp|DDP) PROTOCOL="ddp" ;;
   raw|RAW) PROTOCOL="raw" ;;
   *) PROTOCOL="auto" ;;
 esac
+case "$ACTION" in check|repair|test) ;; *) ACTION="repair" ;; esac
+case "$TARGET_MODE" in auto|last|manual|wled-ap) ;; *) TARGET_MODE="auto" ;; esac
 
+stage(){ echo "STAGE=$1"; }
 log(){ [ "$VERBOSE" = "1" ] && echo "LOG=$1"; }
 fail(){ echo "STATUS=ERROR"; echo "ERROR=$1"; exit 1; }
+fail_kind(){ echo "STATUS=ERROR"; echo "ERROR_KIND=$1"; echo "ERROR=$2"; exit 1; }
 
+piccap_running(){
+  ps w 2>/dev/null | grep '/org.webosbrew.piccap.service/hyperion-webos' | grep -v grep >/dev/null 2>&1
+}
+capture_input_active(){
+  PINFO=$(wget -T 2 -qO- http://127.0.0.1:8090/json-rpc --post-data='{"command":"serverinfo","tan":171}' --header='Content-Type: application/json' 2>/dev/null)
+  echo "$PINFO" | tr '\n' ' ' | grep -Eq '"active"[[:space:]]*:[[:space:]]*true[^}]*"priority"[[:space:]]*:[[:space:]]*150|"priority"[[:space:]]*:[[:space:]]*150[^}]*"active"[[:space:]]*:[[:space:]]*true'
+}
+restart_piccap(){
+  [ "$PICCAP_RECOVERY" = "1" ] || return 0
+  stage "Restarting PicCap"
+  luna-send -w 3000 -n 1 "luna://$PICCAP_SERVICE/stop" '{}' >/dev/null 2>&1 || true
+  sleep 1
+  luna-send -w 3000 -n 1 "luna://$PICCAP_SERVICE/start" '{}' >/dev/null 2>&1 || true
+  sleep 3
+  echo "PICCAP_RECOVERY=restarted"
+}
+
+stage "Checking prerequisites"
 [ -r "$DB" ] || fail "Hyperion database not found"
 command -v ifconfig >/dev/null 2>&1 || fail "ifconfig not found"
 command -v wget >/dev/null 2>&1 || fail "wget not found"
@@ -70,10 +103,12 @@ fi
 NET=$(echo "$MYIP" | cut -d. -f1-3)
 [ -n "$NET" ] || fail "Could not determine current subnet"
 
+stage "Reading network"
 echo "TV_IP=$MYIP"
 echo "INTERFACE=$IFACE"
 log "Subnet $NET.0/24 via $IFACE"
 
+stage "Reading Hyperion configuration"
 DEVICE_CONFIG=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
 OLD=$(echo "$DEVICE_CONFIG" | sed -n 's/.*"host":"\([^"]*\)".*/\1/p')
 
@@ -120,8 +155,19 @@ is_wled(){
 
 WLED_IP=""
 DISCOVERY=""
+LAST_IP=""
+if [ -r "$STATE" ]; then LAST_IP=$(sed -n 's/^IP=//p' "$STATE" | head -n 1); fi
 
-if [ "$FAST" = "1" ]; then
+stage "Discovering WLED"
+if [ "$TARGET_MODE" = "wled-ap" ]; then
+  is_wled "4.3.2.1" && { WLED_IP="4.3.2.1"; DISCOVERY="wled-ap"; }
+elif [ "$TARGET_MODE" = "manual" ]; then
+  [ -n "$MANUAL_IP" ] && is_wled "$MANUAL_IP" && { WLED_IP="$MANUAL_IP"; DISCOVERY="manual"; }
+elif [ "$TARGET_MODE" = "last" ]; then
+  [ -n "$LAST_IP" ] && is_wled "$LAST_IP" && { WLED_IP="$LAST_IP"; DISCOVERY="last-known"; }
+fi
+
+if [ -z "$WLED_IP" ] && [ "$FAST" = "1" ]; then
   case "$OLD" in
     [0-9]*.[0-9]*.[0-9]*.[0-9]*)
       log "Trying current Hyperion target $OLD"
@@ -131,6 +177,11 @@ if [ "$FAST" = "1" ]; then
       fi
       ;;
   esac
+
+  if [ -z "$WLED_IP" ] && [ -n "$LAST_IP" ] && [ "$LAST_IP" != "$OLD" ]; then
+    log "Trying last known WLED $LAST_IP"
+    is_wled "$LAST_IP" && { WLED_IP="$LAST_IP"; DISCOVERY="last-known"; }
+  fi
 
   if [ -z "$WLED_IP" ] && [ -r /proc/net/arp ]; then
     for IP in $(awk -v net="$NET." 'NR>1 && $3=="0x2" && index($1,net)==1 {print $1}' /proc/net/arp 2>/dev/null); do
@@ -188,9 +239,32 @@ if [ -z "$WLED_IP" ] && [ "$FULL" = "1" ]; then
   done
 fi
 
-[ -n "$WLED_IP" ] || fail "WLED not found on $NET.0/24"
+if [ -z "$WLED_IP" ]; then
+  KIND="WLED_OFFLINE"
+  case "$OLD" in
+    "$NET".*)
+      ping -c 1 -W 1 "$OLD" >/dev/null 2>&1 || true
+      ARP_LINE=$(grep "^$OLD " /proc/net/arp 2>/dev/null)
+      [ -z "$ARP_LINE" ] && KIND="NETWORK_ISOLATION_OR_OFFLINE"
+      echo "$ARP_LINE" | grep -q '00:00:00:00:00:00' && KIND="NETWORK_ISOLATION_OR_OFFLINE"
+      ;;
+  esac
+  fail_kind "$KIND" "WLED not found or reachable on $NET.0/24"
+fi
 echo "WLED_IP=$WLED_IP"
 echo "DISCOVERY=$DISCOVERY"
+WLED_INFO=$(wget -T "$TIMEOUT" -qO- "http://$WLED_IP/json/info" 2>/dev/null)
+WLED_MAC=$(echo "$WLED_INFO" | sed -n 's/.*"mac"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+WLED_NAME=$(echo "$WLED_INFO" | sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+WLED_LED_COUNT=$(echo "$WLED_INFO" | sed -n 's/.*"leds"[[:space:]]*:[[:space:]]*{[^}]*"count"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+[ -n "$WLED_MAC" ] && echo "WLED_MAC=$WLED_MAC"
+[ -n "$WLED_NAME" ] && echo "WLED_NAME=$WLED_NAME"
+[ -n "$WLED_LED_COUNT" ] && echo "WLED_LED_COUNT=$WLED_LED_COUNT"
+if [ -n "$LED_COUNT" ] && [ -n "$WLED_LED_COUNT" ] && [ "$LED_COUNT" != "$WLED_LED_COUNT" ]; then
+  echo "LED_COUNT_NOTE=Hyperion logical LEDs ($LED_COUNT) differ from WLED physical LEDs ($WLED_LED_COUNT)"
+fi
+mkdir -p /home/root/.config 2>/dev/null || true
+{ echo "IP=$WLED_IP"; echo "MAC=$WLED_MAC"; echo "NAME=$WLED_NAME"; } > "$STATE" 2>/dev/null || true
 
 WLED_INFO=$(wget -T "$TIMEOUT" -qO- "http://$WLED_IP/json/info" 2>/dev/null) || fail "WLED stopped responding during verification"
 WLED_AP_INFO="0"
@@ -252,6 +326,9 @@ NEEDS_UPDATE="0"
 
 CONFIG_CHANGED="0"
 [ "$NEEDS_UPDATE" = "1" ] && CONFIG_CHANGED="1"
+if [ "$ACTION" != "repair" ] && [ "$NEEDS_UPDATE" = "1" ]; then
+  fail_kind "NEEDS_REPAIR" "Hyperion target/protocol differs from the detected WLED; run Repair"
+fi
 
 if [ "$NEEDS_UPDATE" = "1" ]; then
   if [ "$BACKUP" = "1" ]; then
@@ -312,10 +389,14 @@ echo "CONFIG_CHANGED=$CONFIG_CHANGED"
 
 if [ "$RESTART" = "1" ] && [ "$CONFIG_CHANGED" = "1" ]; then
   echo "RESTARTING_HYPERION=1"
+  PICCAP_WAS_RUNNING="0"
+  piccap_running && PICCAP_WAS_RUNNING="1"
+  stage "Restarting Hyperion"
   luna-send -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1
   sleep 2
   luna-send -n 1 "luna://$SERVICE/start" '{}' >/dev/null 2>&1
   sleep 3
+  [ "$PICCAP_WAS_RUNNING" = "1" ] && restart_piccap
 else
   echo "RESTARTING_HYPERION=0"
 fi
@@ -331,7 +412,9 @@ if [ "$VERIFY" = "1" ]; then
   echo "$SINFO" | tr '\n' ' ' | grep -Eq '"enabled"[[:space:]]*:[[:space:]]*true[^}]*"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"|"name"[[:space:]]*:[[:space:]]*"LEDDEVICE"[^}]*"enabled"[[:space:]]*:[[:space:]]*true' && VERIFIED="1"
 
   if [ "$VERIFIED" != "1" ]; then
+    [ "$ACTION" = "repair" ] || fail_kind "LEDDEVICE_DISABLED" "Hyperion LEDDEVICE is not enabled; run Repair"
     echo "LEDDEVICE_RECOVERY=attempt"
+    stage "Enabling Hyperion LEDDEVICE"
     ENABLE_REPLY=$(wget -T 3 -qO- http://127.0.0.1:8090/json-rpc \
       --post-data='{"command":"componentstate","componentstate":{"component":"LEDDEVICE","state":true},"tan":90}' \
       --header='Content-Type: application/json' 2>/dev/null)
@@ -348,6 +431,7 @@ if [ "$VERIFY" = "1" ]; then
     echo "LEDDEVICE_RECOVERY=not-needed"
   fi
 
+  stage "Testing realtime output"
   # End-to-end probe: ask Hyperion for a short color frame, then confirm
   # that WLED reports itself in realtime mode. This detects the exact case
   # where the DB looks correct but UDP packets never reach WLED.
@@ -361,8 +445,46 @@ if [ "$VERIFY" = "1" ]; then
   echo "LIVE_VERIFIED=$LIVE_VERIFIED"
   [ -n "$LIVE_SOURCE" ] && echo "LIVE_SOURCE=$LIVE_SOURCE"
 
+  if [ "$LIVE_VERIFIED" != "1" ] && [ "$ACTION" = "repair" ] && [ "$PROTOCOL" = "auto" ]; then
+    stage "Trying protocol fallback"
+    if [ "$NEW_PROTOCOL" = "DDP" ]; then ALT_PROTOCOL="RAW"; ALT_PORT="19446"; else ALT_PROTOCOL="DDP"; ALT_PORT="4048"; fi
+    CUR=$(sqlite3 "$DB" "SELECT config FROM settings WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%' LIMIT 1;" 2>/dev/null)
+    ALT=$(echo "$CUR" | sed 's/"streamProtocol":"[^"]*"/"streamProtocol":"'"$ALT_PROTOCOL"'"/')
+    if echo "$ALT" | grep -q '"port":[0-9][0-9]*'; then ALT=$(echo "$ALT" | sed 's/"port":[0-9][0-9]*/"port":'"$ALT_PORT"'/'); else ALT=$(echo "$ALT" | sed 's/"streamProtocol":"'"$ALT_PROTOCOL"'"/"streamProtocol":"'"$ALT_PROTOCOL"'","port":'"$ALT_PORT"'/'); fi
+    SQL_ALT=$(printf "%s" "$ALT" | sed "s/'/''/g")
+    sqlite3 "$DB" "UPDATE settings SET config='$SQL_ALT',updated_at=datetime('now') WHERE type='device' AND hyperion_inst=$INSTANCE AND config LIKE '%\"type\":\"wled\"%';" >/dev/null 2>&1
+    PICCAP_WAS_RUNNING="0"; piccap_running && PICCAP_WAS_RUNNING="1"
+    luna-send -w 3000 -n 1 "luna://$SERVICE/stop" '{}' >/dev/null 2>&1 || true
+    sleep 1
+    luna-send -w 3000 -n 1 "luna://$SERVICE/start" '{}' >/dev/null 2>&1 || true
+    sleep 3
+    [ "$PICCAP_WAS_RUNNING" = "1" ] && restart_piccap
+    wget -T 3 -qO- http://127.0.0.1:8090/json-rpc --post-data='{"command":"componentstate","componentstate":{"component":"LEDDEVICE","state":true},"tan":92}' --header='Content-Type: application/json' >/dev/null 2>&1 || true
+    wget -T 2 -qO- http://127.0.0.1:8090/json-rpc --post-data='{"command":"color","color":[24,64,160],"priority":50,"duration":1800,"tan":93}' --header='Content-Type: application/json' >/dev/null 2>&1
+    sleep 1
+    LIVE_INFO=$(wget -T 2 -qO- "http://$WLED_IP/json/info" 2>/dev/null)
+    echo "$LIVE_INFO" | grep -Eq '"live"[[:space:]]*:[[:space:]]*true' && LIVE_VERIFIED="1"
+    if [ "$LIVE_VERIFIED" = "1" ]; then NEW_PROTOCOL="$ALT_PROTOCOL"; NEW_PORT="$ALT_PORT"; echo "PROTOCOL_FALLBACK=$ALT_PROTOCOL"; echo "PORT=$ALT_PORT"; fi
+  fi
+
   if [ "$LIVE_VERIFIED" != "1" ]; then
-    fail "Hyperion is configured, but WLED did not enter realtime mode. Enable Receive UDP realtime in WLED or try DDP."
+    fail_kind "REALTIME_FAILED" "Hyperion is configured, but WLED did not enter realtime mode"
+  fi
+
+  if [ "$PICCAP_RECOVERY" = "1" ] && piccap_running; then
+    stage "Checking PicCap capture"
+    if ! capture_input_active; then
+      if [ "$ACTION" = "repair" ]; then
+        restart_piccap
+        capture_input_active && echo "PICCAP_STATE=recovered" || echo "PICCAP_STATE=running-no-input"
+      else
+        fail_kind "PICCAP_CAPTURE_MISSING" "PicCap is running but Hyperion has no active capture input; run Repair"
+      fi
+    else
+      echo "PICCAP_STATE=running"
+    fi
+  else
+    piccap_running && echo "PICCAP_STATE=running" || echo "PICCAP_STATE=stopped"
   fi
 fi
 

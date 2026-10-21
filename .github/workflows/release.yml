@@ -61,7 +61,9 @@ jobs:
             ares-package --no-minify --outdir dist apps/wifi-watch/app apps/wifi-watch/service
           else
             sh -n apps/wled-fix/app/wled-auto.sh
+            sh -n apps/wled-fix/app/wled-watchdog.sh
             test -x apps/wled-fix/app/wled-auto.sh
+            test -x apps/wled-fix/app/wled-watchdog.sh
             ares-package --no-minify --outdir dist apps/wled-fix/app
           fi
           IPK="$(find dist -maxdepth 1 -name '*.ipk' -print -quit)"

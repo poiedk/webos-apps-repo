@@ -65,7 +65,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       <div class="title">WLED Fix</div>
       <div class="subtitle">Hyperion and WLED recovery</div>
     </div>
-    <div class="version">v1.1.21</div>
+    <div class="version">v1.2.0</div>
   </div>
 
   <section id="main" class="screen active home">
@@ -95,23 +95,16 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       </div>
     </div>
 
+    <div id="stageLine" class="tech" style="display:block;height:42px;font-family:Arial,Helvetica,sans-serif;font-size:18px">Ready</div>
     <div class="actions">
-      <div class="action focus">
-        <div class="actionTitle">Run check</div>
-        <div class="actionSub">Detect WLED and repair Hyperion if needed</div>
-      </div>
-      <div class="action">
-        <div class="actionTitle">Settings</div>
-        <div class="actionSub">Discovery, verification and backup</div>
-      </div>
-      <div class="action last">
-        <div class="actionTitle">Exit</div>
-        <div class="actionSub">Close WLED Fix</div>
-      </div>
+      <div class="action focus"><div class="actionTitle">Check</div><div class="actionSub">Diagnose only</div></div>
+      <div class="action"><div class="actionTitle">Repair</div><div class="actionSub">Fix IP, protocol, Hyperion & PicCap</div></div>
+      <div class="action"><div class="actionTitle">Test LEDs</div><div class="actionSub">Realtime color test</div></div>
+      <div class="action last"><div class="actionTitle">Settings</div><div class="actionSub">Profiles and watchdog</div></div>
     </div>
 
     <div id="technical" class="tech"></div>
-    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.1.21</span></div>
+    <div class="help"><span>LEFT / RIGHT: select &nbsp;&nbsp; OK: open &nbsp;&nbsp; BACK: stay in app</span><span>1.2.0</span></div>
   </section>
 
   <section id="simple" class="screen settingsPage">
@@ -132,7 +125,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
   var DEFAULTS={
     autoScan:false,autoClose:false,verify:true,testLeds:false,showTechnical:false,
     fastScan:true,fullScan:true,timeout:1,instance:0,restart:true,iface:"wlan0",
-    backup:true,keepBackups:3,verbose:false,protocol:"AUTO"
+    backup:true,keepBackups:3,verbose:false,protocol:"AUTO",targetMode:"AUTO",manualIp:"",piccapRecovery:true,backgroundWatchdog:false,autoRepair:false,watchInterval:60
   };
   var settings=loadSettings(),screen="main",focus=0,busy=false,lastRaw="";
 
@@ -145,7 +138,20 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     }catch(e){}
     return s;
   }
-  function saveSettings(){try{localStorage.setItem("wledfix.settings.v2",JSON.stringify(settings));}catch(e){}}
+  function saveSettings(){try{localStorage.setItem("wledfix.settings.v2",JSON.stringify(settings));}catch(e){} syncWatchdog();}
+  function syncWatchdog(){
+    var p="/media/developer/apps/usr/palm/applications/org.webosbrew.wledfix/wled-watchdog.sh";
+    var cfg="/home/root/.config/wled-fix-watch.conf";
+    var cmd;
+    if(settings.backgroundWatchdog){
+      cmd="mkdir -p /home/root/.config /var/lib/webosbrew/init.d; "+
+        "printf 'INTERVAL="+settings.watchInterval+"\\nAUTO_REPAIR="+(settings.autoRepair?1:0)+"\\nPICCAP_RECOVERY="+(settings.piccapRecovery?1:0)+"\\n' > "+cfg+"; "+
+        "chmod +x "+p+"; ln -sf "+p+" /var/lib/webosbrew/init.d/65-wled-fix; "+p+" start";
+    }else{
+      cmd=p+" stop; rm -f /var/lib/webosbrew/init.d/65-wled-fix";
+    }
+    execCommand(cmd,function(){});
+  }
 
   var simpleItems=[
     {k:"autoScan",label:"Auto scan on launch",hint:"Run a connection check when WLED Fix opens",type:"bool"},
@@ -153,6 +159,9 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     {k:"verify",label:"Verify after repair",hint:"Confirm Hyperion points to the detected WLED device",type:"bool"},
     {k:"testLeds",label:"Test LEDs after repair",hint:"Run the LED verification step after a change",type:"bool"},
     {k:"showTechnical",label:"Technical details",hint:"Show raw diagnostic output on the home screen",type:"bool"},
+    {k:"piccapRecovery",label:"PicCap recovery",hint:"Restart PicCap when Hyperion restarts or capture disappears",type:"bool"},
+    {k:"backgroundWatchdog",label:"Background watchdog",hint:"Monitor Hyperion to WLED after boot",type:"bool"},
+    {k:"autoRepair",label:"Auto repair",hint:"Repair failures automatically with a cooldown",type:"bool"},
     {action:"advanced",label:"Advanced settings",hint:"Network scan, Hyperion instance and backups",value:"OPEN"}
   ];
   var advancedItems=[
@@ -160,7 +169,10 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     {k:"fullScan",label:"Full subnet fallback",hint:"Scan the local /24 if WLED is not found quickly",type:"bool"},
     {k:"timeout",label:"Scan timeout",hint:"Per-device network request timeout",type:"cycle",vals:[1,2],suffix:" sec"},
     {k:"instance",label:"Hyperion instance",hint:"Hyperion configuration instance to update",type:"cycle",vals:[0,1,2,3]},
-    {k:"protocol",label:"Streaming protocol",hint:"AUTO uses RAW on a direct WLED-AP link and DDP on normal Wi-Fi",type:"cycle",vals:["AUTO","DDP","RAW"]},
+    {k:"protocol",label:"Streaming protocol",hint:"AUTO tests the preferred protocol and falls back if realtime fails",type:"cycle",vals:["AUTO","DDP","RAW"]},
+    {k:"targetMode",label:"WLED target mode",hint:"AUTO, last known controller, manual IP or WLED-AP",type:"cycle",vals:["AUTO","LAST","MANUAL","WLED-AP"]},
+    {action:"manualIp",label:"Manual WLED IP",hint:"Used only when target mode is MANUAL",value:"EDIT"},
+    {k:"watchInterval",label:"Watchdog interval",hint:"Seconds between background checks",type:"cycle",vals:[30,60,120,300],suffix:" sec"},
     {k:"restart",label:"Restart Hyperion",hint:"Restart the Hyperion service after a change",type:"bool"},
     {k:"iface",label:"Network interface",hint:"Interface used for discovery",type:"cycle",vals:["wlan0","eth0"]},
     {k:"backup",label:"Backup Hyperion DB",hint:"Create a database backup before modifying the target",type:"bool"},
@@ -220,28 +232,43 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
   }
 
   function shellBool(v){return v?"1":"0";}
-  function buildCommand(){
+  function buildCommand(action){
     var p="/media/developer/apps/usr/palm/applications/org.webosbrew.wledfix/wled-auto.sh";
-    var args=
+    return "sh "+p+
+      " --action "+action+
       " --iface "+settings.iface+
       " --timeout "+settings.timeout+
       " --instance "+settings.instance+
       " --protocol "+settings.protocol.toLowerCase()+
+      " --target-mode "+settings.targetMode.toLowerCase()+
+      " --manual-ip "+(settings.manualIp||"0.0.0.0")+
       " --fast "+shellBool(settings.fastScan)+
       " --full "+shellBool(settings.fullScan)+
       " --verify "+shellBool(settings.verify)+
       " --restart "+shellBool(settings.restart)+
       " --backup "+shellBool(settings.backup)+
       " --keep-backups "+settings.keepBackups+
-      " --test-leds "+shellBool(settings.testLeds)+
+      " --test-leds "+(action==="test"?"1":"0")+
+      " --piccap-recovery "+shellBool(settings.piccapRecovery)+
       " --verbose "+shellBool(settings.verbose);
-    return "(tmp=/tmp/wledfix-ui.$; rm -f \"$tmp\"; "+
-      "sh "+p+args+" >\"$tmp\" 2>&1 & pid=$!; "+
-      "(sleep 30; if kill -0 \"$pid\" 2>/dev/null; then echo STATUS=ERROR >>\"$tmp\"; echo ERROR=Check timed out after 30 seconds >>\"$tmp\"; kill \"$pid\" 2>/dev/null; fi) & guard=$!; "+
-      "wait \"$pid\"; rc=$?; kill \"$guard\" 2>/dev/null; wait \"$guard\" 2>/dev/null; "+
-      "cat \"$tmp\"; rm -f \"$tmp\"; echo EXIT_CODE=$rc; exit 0)";
   }
 
+  function startWorker(action,cb){
+    var cmd=buildCommand(action);
+    var wrap="rm -f /tmp/wledfix-ui.log /tmp/wledfix-ui.pid; ("+cmd+"; rc=$?; echo FINAL_RC=$rc) >/tmp/wledfix-ui.log 2>&1 & echo $! >/tmp/wledfix-ui.pid";
+    execCommand(wrap,function(){if(cb)cb();});
+  }
+
+  function pollWorker(){
+    execCommand("cat /tmp/wledfix-ui.log 2>/dev/null; p=$(cat /tmp/wledfix-ui.pid 2>/dev/null); if [ -n \"$p\" ] && kill -0 \"$p\" 2>/dev/null; then echo __RUNNING=1; else echo __RUNNING=0; fi",function(msg){
+      var r,out="",d,lines,i,stage="";
+      try{r=JSON.parse(msg||"{}");out=(r.stdoutString||"")+(r.stderrString?("\n"+r.stderrString):"");}catch(e){out="STATUS=ERROR\nERROR=Invalid worker response";}
+      d=parseOutput(out);lastRaw=out;lines=out.split(/\r?\n/);
+      for(i=lines.length-1;i>=0;i--){if(lines[i].indexOf("STAGE=")===0){stage=lines[i].slice(6);break;}}
+      document.getElementById("stageLine").textContent=stage||"Working...";
+      if(d.__RUNNING==="1"){render();setTimeout(pollWorker,700);}else{finish(d,out);}
+    });
+  }
   function execCommand(command,cb){
     try{
       var bridge=new PalmServiceBridge();
@@ -294,28 +321,19 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
       document.getElementById("resultSub").textContent=data.LIVE_VERIFIED==="1"?"Hyperion reached WLED in realtime"+(data.LIVE_SOURCE?(" from "+data.LIVE_SOURCE):"")+".":"Hyperion target/protocol match, but realtime delivery was not verified.";
     }else{
       document.getElementById("resultText").textContent="Check failed";
-      document.getElementById("resultSub").textContent=data.ERROR||"WLED Fix could not complete the check.";
+      document.getElementById("resultSub").textContent=(data.ERROR_KIND?data.ERROR_KIND+": ":"")+(data.ERROR||"WLED Fix could not complete the check.");
     }
 
+    if(data.LED_COUNT_NOTE)document.getElementById("stageLine").textContent=data.LED_COUNT_NOTE;
+    else if(data.PICCAP_STATE)document.getElementById("stageLine").textContent="PicCap: "+data.PICCAP_STATE;
     busy=false;render();
     if(settings.autoClose&&result!=="ERROR")setTimeout(exitApp,1600);
   }
 
-  function runFix(){
+  function runFix(action){
     if(busy)return;
-    startBusy();render();
-    execCommand(buildCommand(),function(msg){
-      var r,out="";
-      try{
-        r=JSON.parse(msg||"{}");
-        if(r.stdoutString)out+=r.stdoutString;
-        if(r.stderrString)out+=(out?"\n":"")+r.stderrString;
-        if(r.errorText)out+=(out?"\n":"")+"ERROR="+r.errorText;
-      }catch(e){
-        out="STATUS=ERROR\nERROR=Invalid service response";
-      }
-      finish(parseOutput(out),out);
-    });
+    busy=true;startBusy();document.getElementById("stageLine").textContent="Starting "+action+"...";render();
+    startWorker(action,function(){setTimeout(pollWorker,350);});
   }
 
   function exitApp(){
@@ -330,9 +348,10 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
   function activate(){
     var items,it;
     if(screen==="main"){
-      if(focus===0)runFix();
-      else if(focus===1)setScreen("simple");
-      else exitApp();
+      if(focus===0)runFix("check");
+      else if(focus===1)runFix("repair");
+      else if(focus===2)runFix("test");
+      else setScreen("simple");
       return;
     }
 
@@ -340,6 +359,11 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
     it=items[focus];
 
     if(it.action==="advanced"){setScreen("advanced");return;}
+    if(it.action==="manualIp"){
+      var v=window.prompt?window.prompt("Manual WLED IPv4",settings.manualIp||""):null;
+      if(v!==null){settings.manualIp=v;saveSettings();render();}
+      return;
+    }
     if(it.action==="reset"){settings=copy(DEFAULTS);saveSettings();render();return;}
     cycle(it,1);
   }
@@ -358,9 +382,9 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#100d18;col
 
     if(screen==="main"){
       if(code===37||code===38){
-        focus=(focus+2)%3;render();e.preventDefault();
+        focus=(focus+3)%4;render();e.preventDefault();
       }else if(code===39||code===40){
-        focus=(focus+1)%3;render();e.preventDefault();
+        focus=(focus+1)%4;render();e.preventDefault();
       }else if(code===13){
         activate();e.preventDefault();
       }
