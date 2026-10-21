@@ -1,0 +1,119 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LG Custom Home</title><style>
+html,body{height:100%;margin:0;background:#0c1322;color:#fff;font-family:Arial,sans-serif;overflow:hidden}
+*{box-sizing:border-box}.page{padding:38px 55px}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #354055;padding-bottom:20px}
+h1{font-size:44px;font-weight:400;margin:0}.clock{font-size:26px;color:#b8c9ea}
+.help{color:#a1b5d6;font-size:20px;margin:18px 0 26px}.group{font-size:26px;color:#c9d7f4;margin:22px 0 10px}
+.grid{display:flex;flex-wrap:wrap;max-height:490px;overflow:hidden}.tile{height:105px;width:195px;background:#1d2940;border:3px solid transparent;border-radius:12px;margin:0 12px 12px 0;padding:15px;position:relative}
+.tile.sel{border-color:#61dded;background:#293e62}.tile .name{font-size:23px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:18px}
+.tile .star{position:absolute;right:12px;top:9px;color:#ffd27a;font-size:20px}.msg{color:#ffce90;font-size:18px}
+</style></head><body><div class="page"><div class="top"><h1>Custom Home</h1><div id="clock" class="clock"></div></div>
+<div class="help">Arrows: navigate · OK: open · Yellow (405): favorite · Blue (406): move favorite forward · Back: exit</div>
+<div id="message" class="msg"></div><div class="group" id="heading">Apps &amp; inputs</div><div id="grid" class="grid"></div>
+</div><script>
+(function(){
+'use strict';
+var entries=[],visible=[],position=0,favorites=[],limit=35;
+try{favorites=JSON.parse(localStorage.getItem('customHomeFavorites')||'[]');if(!Array.isArray(favorites))favorites=[];}catch(e){favorites=[];}
+function invoke(method,params,cb){
+ var done=false;
+ function fallback(reason){
+   if(done)return;done=true;
+   // Legacy webOS 3.x rejects applicationManager calls from ordinary web apps.
+   // Homebrew Channel's existing root exec service can reach the same API.
+   var payload=JSON.stringify(params||{});
+   var command="luna-send -n 1 -f luna://com.webos.applicationManager/"+method+" '"+payload.replace(/'/g,"'\\''")+"'";
+   try{
+     var privileged=new PalmServiceBridge();
+     privileged.onservicecallback=function(data){
+       var outer,out,result;
+       try{
+         outer=JSON.parse(data||'{}');
+         out=outer.stdoutString||'';
+         result=JSON.parse(out);
+         cb(result);
+       }catch(e){cb({returnValue:false,errorText:'Root service failed: '+String((outer&&outer.errorText)||reason||e)});}
+     };
+     privileged.call('luna://org.webosbrew.hbchannel.service/exec',JSON.stringify({command:command}));
+   }catch(e){cb({returnValue:false,errorText:'Root exec unavailable: '+String(e)});}
+ }
+ try{
+   var bridge=new PalmServiceBridge();
+   bridge.onservicecallback=function(data){
+     try{
+       var result=JSON.parse(data);
+       if(result.returnValue===false){fallback(result.errorText||'Access denied');return;}
+       cb(result);
+     }catch(e){fallback('Invalid normal service response');}
+   };
+   bridge.call('luna://com.webos.applicationManager/'+method,JSON.stringify(params||{}));
+ }catch(e){fallback(String(e));}
+}
+function message(t){document.getElementById('message').textContent=t||'';}
+function uniqueFavorite(id){return favorites.indexOf(id)>=0;}
+function store(){try{localStorage.setItem('customHomeFavorites',JSON.stringify(favorites));}catch(e){}}
+function choose(){
+ var priority={'com.webos.app.livetv':1,'com.webos.app.hdmi3':2,'com.webos.app.hdmi2':3,'com.webos.app.hdmi1':4};
+ entries.sort(function(a,b){
+   var ia=favorites.indexOf(a.launchPointId),ib=favorites.indexOf(b.launchPointId);
+   if(ia>=0&&ib>=0)return ia-ib;if(ia>=0)return -1;if(ib>=0)return 1;
+   var pa=priority[a.id]||100,pb=priority[b.id]||100;if(pa!==pb)return pa-pb;
+   return (a.title||'').localeCompare(b.title||'');
+ });
+ visible=entries.slice(0,limit);if(position>=visible.length)position=Math.max(0,visible.length-1);
+ render();
+}
+function tileName(s){var e=document.createElement('span');e.textContent=s;return e.innerHTML;}
+function render(){
+ var grid=document.getElementById('grid');grid.innerHTML='';
+ for(var i=0;i<visible.length;i++){
+   var entry=visible[i],tile=document.createElement('div');
+   tile.className='tile'+(i===position?' sel':'');
+   var star=document.createElement('div');star.className='star';star.textContent=uniqueFavorite(entry.launchPointId)?'★':'';
+   var name=document.createElement('div');name.className='name';name.textContent=entry.title||entry.id;
+   tile.appendChild(star);tile.appendChild(name);
+   (function(index){tile.onclick=function(){position=index;render();openSelected();};})(i);
+   grid.appendChild(tile);
+ }
+ document.getElementById('heading').textContent='Apps & inputs ('+entries.length+')';
+}
+function load(){
+ invoke('listLaunchPoints',{},function(r){
+   if(!r.returnValue||!r.launchPoints){message(r.errorText||'Could not read installed apps');return;}
+   entries=[];
+   for(var i=0;i<r.launchPoints.length;i++){
+     var a=r.launchPoints[i];if(!a||!a.id||!a.launchPointId)continue;
+     if(a.id==='org.webosbrew.customhome')continue;
+     entries.push({id:a.id,launchPointId:a.launchPointId,title:a.title||a.id,params:a.params||{}});
+   }
+   message('');choose();
+ });
+}
+function openSelected(){
+ var a=visible[position];if(!a)return;
+ // Bookmarked HDMI inputs have launch params which must be preserved.
+ invoke('launch',{id:a.id,params:a.params},function(r){if(!r.returnValue)message('Launch failed: '+(r.errorText||a.id));});
+}
+function toggle(){
+ var a=visible[position];if(!a)return;
+ var i=favorites.indexOf(a.launchPointId);if(i<0)favorites.push(a.launchPointId);else favorites.splice(i,1);
+ store();choose();
+}
+function move(){
+ var a=visible[position];if(!a)return;
+ var i=favorites.indexOf(a.launchPointId);if(i>0){var t=favorites[i-1];favorites[i-1]=favorites[i];favorites[i]=t;store();choose();}
+}
+function now(){var d=new Date();document.getElementById('clock').textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+document.addEventListener('keydown',function(e){var n=visible.length;if(!n)return;
+ if(e.keyCode===37)position=Math.max(0,position-1);
+ else if(e.keyCode===39)position=Math.min(n-1,position+1);
+ else if(e.keyCode===38)position=Math.max(0,position-5);
+ else if(e.keyCode===40)position=Math.min(n-1,position+5);
+ else if(e.keyCode===13)openSelected();
+ else if(e.keyCode===405)toggle();
+ else if(e.keyCode===406)move();
+ else if(e.keyCode===461||e.keyCode===27)window.close();
+ else return;e.preventDefault();render();
+});
+now();setInterval(now,30000);load();
+})();</script></body></html>

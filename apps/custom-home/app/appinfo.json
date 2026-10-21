@@ -1,0 +1,11 @@
+{
+  "id": "org.webosbrew.customhome",
+  "version": "0.1.1",
+  "vendor": "poiedk",
+  "type": "web",
+  "main": "index.html",
+  "title": "LG Custom Home",
+  "icon": "icon.png",
+  "appDescription": "Lightweight app launcher for webOS TV 3.x",
+  "disableBackHistoryAPI": true
+}
