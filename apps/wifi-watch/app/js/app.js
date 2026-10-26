@@ -6,6 +6,7 @@
   var simpleItems=[
     {k:'backgroundWatchdog',label:'Background watchdog',hint:'Start WiFi Watch automatically after TV boot',type:'bool'},
     {k:'autoFix',label:'Auto Fix',hint:'Reconnect Wi-Fi automatically after a confirmed failure',type:'bool'},
+    {k:'restartOnScanFailure',label:'Restart if scan fails',hint:'If disconnected and Wi-Fi scan fails twice, restart the Wi-Fi stack',type:'bool'},
     {k:'intervalSec',label:'Check interval',hint:'How often the watchdog tests the gateway',type:'cycle',vals:[5,10,15,30],suffix:' sec'},
     {k:'failureThreshold',label:'Failure threshold',hint:'Failed checks before recovery is allowed',type:'cycle',vals:[1,2,3,5]},
     {k:'recoveryCooldownSec',label:'Recovery cooldown',hint:'Minimum delay between automatic recoveries',type:'cycle',vals:[30,60,120,300],suffix:' sec'},
@@ -202,7 +203,9 @@
     document.getElementById('netNotice').textContent='Reading ConnMan services and saved profiles...';
     call('listNetworks',{},function(e,r){
       networks=e?[]:(r.networks||[]);
-      document.getElementById('netNotice').textContent=e?'Network listing failed: '+String(e.errorText||e):'Saved profiles and visible services. Refresh updates this list.';
+      document.getElementById('netNotice').textContent=e?'Network listing failed: '+String(e.errorText||e):
+        (r.scanOk===false?'Wi-Fi scan failed; showing saved/known services. Repeated failure while disconnected triggers a Wi-Fi restart.':
+        'Scan completed. Saved profiles and visible services are shown.');
       renderFocus();
     });
   }

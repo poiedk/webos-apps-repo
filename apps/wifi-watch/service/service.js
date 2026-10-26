@@ -13,6 +13,8 @@ var AUTOSTART='/media/developer/apps/usr/palm/services/org.webosbrew.wifiwatch.s
 var DEFAULTS={
   backgroundWatchdog:true,
   autoFix:false,
+  restartOnScanFailure:true,
+  scanFailureThreshold:2,
   aggressiveFix:false,
   intervalSec:5,
   failureThreshold:3,
@@ -25,17 +27,19 @@ var DEFAULTS={
 
 var cfg=copy(DEFAULTS);
 var configLoaded=false,configLoading=false,configWaiters=[];
-var timer=null,collecting=false,recoveryInProgress=false;
+var timer=null,collecting=false,recoveryInProgress=false,scanCheckInProgress=false;
 var serviceStartedAt=Date.now(),autoFixGraceMs=45000;
 var failures=0,lastFailure=null,sessionRxLastRaw=null,sessionRxDropped=0;
+var scanFailures=0,lastScanAt=null,lastScanResult='not-checked';
 var recoveryTimes=[],sessionRecoveryCount=0,sessionLastRecovery=null,sessionLastRecoveryResult=null;
 var lifetimeRecoveryCount=0,lifetimeLastRecovery=null;
 var last={
   returnValue:true,state:'Starting',cause:'Starting watchdog',ssid:'--',ip:null,gateway:null,
   latencyMs:null,signalDbm:null,rxPackets:null,rxDropped:null,rxDropDelta:null,
   failureCount:0,lastFailure:null,association:'unknown',connman:'unknown',
-  monitoring:false,backgroundWatchdog:true,autoFix:false,iface:'wlan0',
+  monitoring:false,backgroundWatchdog:true,autoFix:false,restartOnScanFailure:true,iface:'wlan0',
   lastCheck:null,probeError:null,recoveryInProgress:false,recoveryCount:0,
+  scanState:'not-checked',scanFailureCount:0,lastScan:null,
   lastRecovery:null,lastRecoveryResult:null
 };
 
@@ -64,6 +68,8 @@ function sanitize(input){
   var x=input||{},out={};
   out.backgroundWatchdog=typeof x.backgroundWatchdog==='boolean'?x.backgroundWatchdog:DEFAULTS.backgroundWatchdog;
   out.autoFix=typeof x.autoFix==='boolean'?x.autoFix:DEFAULTS.autoFix;
+  out.restartOnScanFailure=typeof x.restartOnScanFailure==='boolean'?x.restartOnScanFailure:DEFAULTS.restartOnScanFailure;
+  out.scanFailureThreshold=saneNumber(x.scanFailureThreshold,[2,3],DEFAULTS.scanFailureThreshold);
   out.aggressiveFix=typeof x.aggressiveFix==='boolean'?x.aggressiveFix:DEFAULTS.aggressiveFix;
   out.intervalSec=saneNumber(x.intervalSec,[5,10,15,30],DEFAULTS.intervalSec);
   out.failureThreshold=saneNumber(x.failureThreshold,[1,2,3,5],DEFAULTS.failureThreshold);
@@ -216,6 +222,9 @@ function captureFailure(cause){
 function resetSessionStats(reason){
   serviceStartedAt=Date.now();
   failures=0;
+  scanFailures=0;
+  lastScanAt=null;
+  lastScanResult='not-checked';
   lastFailure=null;
   sessionRxLastRaw=null;
   sessionRxDropped=0;
@@ -233,17 +242,17 @@ function pruneRecoveries(){
 }
 
 function canRecover(source){
+  var automatic=source!=='manual';
   pruneRecoveries();
   if(cfg.iface!=='wlan0')return {ok:false,reason:'Automatic recovery is only available for wlan0'};
   if(recoveryInProgress)return {ok:false,reason:'Recovery already running'};
-  if(source==='auto'&&recoveryTimes.length>=cfg.maxRecoveries)return {ok:false,reason:'Automatic recovery limit reached'};
-  if(source==='auto'&&sessionLastRecovery){
+  if(automatic&&recoveryTimes.length>=cfg.maxRecoveries)return {ok:false,reason:'Automatic recovery limit reached'};
+  if(automatic&&sessionLastRecovery){
     var age=(Date.now()-new Date(sessionLastRecovery).getTime())/1000;
     if(age<cfg.recoveryCooldownSec)return {ok:false,reason:'Recovery cooldown active'};
   }
   return {ok:true};
 }
-
 function recoveryCommand(level){
   var findSvc='SVC="$(connmanctl services 2>/dev/null | awk \'/^\\*A/ {for(i=1;i<=NF;i++) if($i ~ /^wifi_/) {print $i; exit}}\')"; ';
   var reconnect=findSvc+
@@ -268,7 +277,7 @@ function runRecovery(level,source,reason,cb){
   level=level==='full'?'full':'quick';
   started=new Date();
   recoveryInProgress=true;
-  if(source==='auto')recoveryTimes.push(started.getTime());
+  if(source!=='manual')recoveryTimes.push(started.getTime());
   sessionLastRecovery=started.toISOString();
   sessionLastRecoveryResult='running';
   addHistory('RECOVERY_START',source+' '+level+' '+(reason||''));
@@ -303,6 +312,54 @@ function runRecovery(level,source,reason,cb){
   });
 }
 
+function wifiScanProbe(cb){
+  if(scanCheckInProgress){
+    if(cb)cb(null,{ok:false,busy:true,visible:0,rc:null,text:'scan already running'});
+    return;
+  }
+  scanCheckInProgress=true;
+  var cmd='TMP=/tmp/wifi-watch-scan.$$; rm -f "$TMP"; '+
+    '(connmanctl scan wifi >"$TMP" 2>&1) & P=$!; i=0; '+
+    'while kill -0 "$P" 2>/dev/null && [ "$i" -lt 6 ]; do sleep 1; i=$((i+1)); done; '+
+    'if kill -0 "$P" 2>/dev/null; then kill "$P" 2>/dev/null; wait "$P" 2>/dev/null; RC=124; else wait "$P"; RC=$?; fi; '+
+    'sleep 1; VISIBLE="$(connmanctl services 2>/dev/null | grep "wifi_.*_managed_" | wc -l)"; '+
+    'TEXT="$(cat "$TMP" 2>/dev/null | tr "\\r\\n|" "   " | cut -c1-180)"; rm -f "$TMP"; '+
+    'echo "SCAN_RC=$RC"; echo "SCAN_VISIBLE=$VISIBLE"; echo "SCAN_TEXT=$TEXT"';
+  rootExec(cmd,function(err,out){
+    var d=parseKv(out),visible=Number(d.SCAN_VISIBLE||0),rc=d.SCAN_RC==null?null:Number(d.SCAN_RC);
+    scanCheckInProgress=false;
+    if(err){if(cb)cb(err,{ok:false,visible:0,rc:null,text:String(err)});return;}
+    if(cb)cb(null,{ok:visible>0,visible:visible,rc:rc,text:d.SCAN_TEXT||''});
+  });
+}
+
+function maybeRecoverStuckScanner(r){
+  if(!cfg.backgroundWatchdog||!cfg.restartOnScanFailure||recoveryInProgress||scanCheckInProgress)return;
+  if(cfg.iface!=='wlan0')return;
+  if(r&&r.state==='Connected'){scanFailures=0;lastScanResult='not-needed';return;}
+  if(r&&r.ip&&r.ssid&&r.ssid!=='--')return;
+  if(failures<cfg.failureThreshold)return;
+  if(autoFixGraceRemaining()>0)return;
+  wifiScanProbe(function(err,s){
+    lastScanAt=new Date().toISOString();
+    if(!err&&s.ok){
+      scanFailures=0;
+      lastScanResult='ok-'+s.visible+'-networks';
+      addHistory('SCAN_OK',s.visible+' visible Wi-Fi services');
+      return;
+    }
+    scanFailures++;
+    lastScanResult='failed'+(s&&s.rc!==null?(' rc='+s.rc):'')+(s&&s.text?(' '+s.text):'');
+    addHistory('SCAN_FAIL','attempt '+scanFailures+'/'+cfg.scanFailureThreshold+' '+lastScanResult);
+    if(scanFailures>=cfg.scanFailureThreshold){
+      scanFailures=0;
+      addHistory('SCAN_STUCK','Disconnected and Wi-Fi scan unavailable; forcing full Wi-Fi restart');
+      runRecovery('full','scan-bug','disconnected and Wi-Fi scan failed repeatedly',function(ok,msg){
+        lastScanResult=ok?'recovered-by-wifi-restart':'wifi-restart-failed: '+msg;
+      });
+    }
+  });
+}
 function autoFixGraceRemaining(){
   return Math.max(0,Math.ceil((serviceStartedAt+autoFixGraceMs-Date.now())/1000));
 }
@@ -331,6 +388,10 @@ function finishCollect(err,data,suppressAuto){
     last.backgroundWatchdog=cfg.backgroundWatchdog;
     last.watchdogActive=false;
     last.autoFix=cfg.autoFix;
+    last.restartOnScanFailure=cfg.restartOnScanFailure;
+    last.scanState=lastScanResult;
+    last.scanFailureCount=scanFailures;
+    last.lastScan=lastScanAt;
     last.autoFixGraceSec=autoFixGraceRemaining();
     last.iface=cfg.iface;
     last.recoveryInProgress=recoveryInProgress;
@@ -396,6 +457,10 @@ function finishCollect(err,data,suppressAuto){
     backgroundWatchdog:cfg.backgroundWatchdog,
     watchdogActive:data.HOOK_ACTIVE==='1',
     autoFix:cfg.autoFix,
+    restartOnScanFailure:cfg.restartOnScanFailure,
+    scanState:lastScanResult,
+    scanFailureCount:scanFailures,
+    lastScan:lastScanAt,
     autoFixGraceSec:autoFixGraceRemaining(),
     iface:cfg.iface,
     lastCheck:now,
@@ -410,7 +475,10 @@ function finishCollect(err,data,suppressAuto){
   };
 
   collecting=false;
-  if(!suppressAuto)maybeAutoRecover(last);
+  if(!suppressAuto){
+    maybeAutoRecover(last);
+    maybeRecoverStuckScanner(last);
+  }
   return last;
 }
 
@@ -495,18 +563,30 @@ function parsedNetworks(output){
 }
 service.register('listNetworks',function(m){
   ensureConfigLoaded(function(){
-    var cmd='for f in /var/lib/connman/wifi_*/settings; do [ -f "$f" ] || continue; '+
-      'id="${f%/settings}"; id="${id##*/}"; '+
-      'name="$(sed -n "s/^Name=//p" "$f" | head -n 1 | tr "\\r\\n| " "   ")"; '+
-      'fav="$(sed -n "s/^Favorite=//p" "$f" | head -n 1)"; '+
-      'printf "PROFILE|%s|%s\\nDETAIL|%s|%s\\n" "$id" "$name" "$id" "$fav"; done; '+
-      'connmanctl services | while IFS= read -r line; do '+
-      'case "$line" in *wifi_*_managed_*) ;; *) continue ;; esac; '+
-      'id="${line##* }"; case "$id" in wifi_*_managed_*) ;; *) continue ;; esac; '+
-      'prefix="${line%$id}"; case "$prefix" in \\*A*) connected=1 ;; *) connected=0 ;; esac; '+
-      'name="$(printf "%s" "$prefix" | sed "s/^[*AORF[:space:]]*//; s/[[:space:]]*$//")"; '+
-      'printf "SERVICE|%s|%s|%s\\n" "$id" "$connected" "$name"; done';
-    rootExec(cmd,function(err,out){m.respond(err?{returnValue:false,errorText:String(err)}:{returnValue:true,networks:parsedNetworks(out)});});
+    wifiScanProbe(function(scanErr,scan){
+      var cmd='for f in /var/lib/connman/wifi_*/settings; do [ -f "$f" ] || continue; '+
+        'id="${f%/settings}"; id="${id##*/}"; '+
+        'name="$(sed -n "s/^Name=//p" "$f" | head -n 1 | tr "\\r\\n| " "   ")"; '+
+        'fav="$(sed -n "s/^Favorite=//p" "$f" | head -n 1)"; '+
+        'printf "PROFILE|%s|%s\\nDETAIL|%s|%s\\n" "$id" "$name" "$id" "$fav"; done; '+
+        'connmanctl services | while IFS= read -r line; do '+
+        'case "$line" in *wifi_*_managed_*) ;; *) continue ;; esac; '+
+        'id="${line##* }"; case "$id" in wifi_*_managed_*) ;; *) continue ;; esac; '+
+        'prefix="${line%$id}"; case "$prefix" in \\*A*) connected=1 ;; *) connected=0 ;; esac; '+
+        'name="$(printf "%s" "$prefix" | sed "s/^[*AORF[:space:]]*//; s/[[:space:]]*$//")"; '+
+        'printf "SERVICE|%s|%s|%s\\n" "$id" "$connected" "$name"; done';
+      rootExec(cmd,function(err,out){
+        if(err){m.respond({returnValue:false,errorText:String(err)});return;}
+        m.respond({
+          returnValue:true,
+          networks:parsedNetworks(out),
+          scanOk:!scanErr&&!!scan&&scan.ok,
+          scanVisible:scan&&scan.visible||0,
+          scanText:scan&&scan.text||'',
+          scanRc:scan&&scan.rc
+        });
+      });
+    });
   });
 });
 // Orphan profiles are on disk but absent from ConnMan's currently advertised services.
